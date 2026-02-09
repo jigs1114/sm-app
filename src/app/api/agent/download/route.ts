@@ -1,85 +1,55 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
-import { createGzip } from "zlib";
-import { promisify } from "util";
-import { pipeline } from "stream";
+import { PassThrough } from "stream";
 
-const pipelineAsync = promisify(pipeline);
+export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     const agentFolderPath = path.join(process.cwd(), "agent");
 
-    // Check if agent folder exists
     if (!fs.existsSync(agentFolderPath)) {
-      return NextResponse.json(
-        { error: "Agent folder not found" },
-        { status: 404 }
-      );
+      return new Response(JSON.stringify({ error: "Agent folder not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
     }
 
-    // Create a temporary file path for the zip
-    const tempDir = path.join(process.cwd(), ".tmp");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    // Ensure this route runs in the Node runtime (archiver requires Node APIs)
+    // (Next will use nodejs runtime when this export is present)
+    // eslint-disable-next-line import/extensions
+    // Dynamically import `archiver` and support both CJS and ESM shapes
+    const archiverModule = await import("archiver");
+    const archiver = (archiverModule as any).default ?? (archiverModule as any);
+    const archive = archiver("zip", { zlib: { level: 5 } });
 
-    const zipFileName = `monitor-agent-${Date.now()}.tar.gz`;
-    const zipFilePath = path.join(tempDir, zipFileName);
+    const passthrough = new PassThrough();
 
-    // Import archiver dynamically
-    const archiver = (await import("archiver")).default;
-
-    const output = fs.createWriteStream(zipFilePath);
-    const archive = archiver("tar", { gzip: true });
-
-    // Handle archive events
-    await new Promise<void>((resolve, reject) => {
-      output.on("close", () => resolve());
-      archive.on("error", (err) => reject(err));
-      output.on("error", (err) => reject(err));
-
-      archive.pipe(output);
-      
-      // Add files from agent folder, excluding .venv and __pycache__
-      archive.glob("**/*", {
-        cwd: agentFolderPath,
-        ignore: ["**/.venv/**", "**/__pycache__/**", "**/.*"],
-      });
-
-      archive.finalize();
+    archive.on("error", (err: any) => {
+      console.error("Archiver error:", err);
+      try {
+        passthrough.destroy(err);
+      } catch (_) {}
     });
 
-    // Read the zip file
-    const fileContent = fs.readFileSync(zipFilePath);
+    archive.pipe(passthrough);
 
-    // Clean up temp file
-    fs.unlinkSync(zipFilePath);
-
-    // Return the zip file
-    return new NextResponse(fileContent, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/gzip",
-        "Content-Disposition": 'attachment; filename="monitor-agent.tar.gz"',
-        "Cache-Control": "no-store",
-      },
+    // Add all files from the agent folder, excluding virtual envs, caches and dotfiles
+    archive.glob("**/*", {
+      cwd: agentFolderPath,
+      ignore: ["**/.venv/**", "**/__pycache__/**", "**/.*"],
     });
+
+    // finalize the archive (async)
+    archive.finalize();
+
+    const headers = new Headers({
+      "Content-Type": "application/zip",
+      "Content-Disposition": 'attachment; filename="monitor-agent.zip"',
+      "Cache-Control": "no-store",
+    });
+
+    return new Response(passthrough as any, { status: 200, headers });
   } catch (error) {
     console.error("Download error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate download" },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Failed to generate archive" }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }
