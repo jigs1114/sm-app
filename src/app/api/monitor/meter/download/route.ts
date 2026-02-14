@@ -9,7 +9,7 @@ export async function GET() {
     const archive = archiver('zip', { zlib: { level: 9 } })
     const pass = new stream.PassThrough()
 
-    archive.on('error', (err) => {
+    archive.on('error', (err: Error) => {
       pass.emit('error', err)
     })
 
