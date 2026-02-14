@@ -54,7 +54,15 @@ interface User {
   createdAt: Date;
 }
 
-let users: User[] = [];
+let users: User[] = [
+  {
+    id: 'admin-default-id',
+    username: 'admin',
+    email: 'admin@example.com',
+    password: '$2b$10$0exJkYXPMPl8BK5b7s/L/.Xzsi.L2Z9hFDW5nm9aaRsaTSJU8mSCa',
+    createdAt: new Date()
+  }
+];
 
 export async function createUser(username: string, email: string, password: string): Promise<User | null> {
   const existingUser = users.find(u => u.username === username || u.email === email);

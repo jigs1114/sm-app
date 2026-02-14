@@ -89,12 +89,12 @@ export default function LoginForm() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
 
-          <p className="text-center text-gray-600 text-sm">
+          {/* <p className="text-center text-gray-600 text-sm">
             Don't have an account?{' '}
             <a href="/register" className="text-blue-600 hover:underline font-medium">
               Register here
             </a>
-          </p>
+          </p> */}
         </form>
       </div>
     </div>

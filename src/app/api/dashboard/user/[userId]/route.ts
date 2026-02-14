@@ -1,7 +1,7 @@
 // app/api/dashboard/user/[userId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getMonitoredUser, getUserConnections } from '@/lib/monitoring';
+import { getMonitoredUser, getUserConnections, getUserMeterReadings } from '@/lib/monitoring';
 
 export async function GET(
   request: NextRequest,
@@ -36,6 +36,7 @@ export async function GET(
     }
 
     const connections = getUserConnections(userId);
+    const meterReadings = getUserMeterReadings(userId);
 
     return NextResponse.json({
       success: true,
@@ -60,6 +61,19 @@ export async function GET(
           state: c.state,
           timestamp: c.timestamp,
           lastUpdated: c.lastUpdated
+        })),
+        meterReadings: meterReadings.map(r => ({
+          id: r.id,
+          timestamp: r.timestamp,
+          voltage_v: r.voltage_v,
+          current_a: r.current_a,
+          active_power_kw: r.active_power_kw,
+          reactive_power_kvar: r.reactive_power_kvar,
+          apparent_power_kva: r.apparent_power_kva,
+          power_factor: r.power_factor,
+          frequency_hz: r.frequency_hz,
+          cumulative_kwh: r.cumulative_kwh,
+          ip: r.ip
         })),
         summary: {
           totalConnections: connections.length,

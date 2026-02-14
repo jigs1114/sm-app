@@ -9,10 +9,19 @@ interface MonitoredUser {
   deviceName: string;
   status: 'online' | 'offline';
   connectionCount: number;
+  meterReadingCount: number;
   lastSeen: string;
   registeredAt: string;
   protocols: string[];
   uniqueIps: string[];
+  latestMeterReading: {
+    timestamp: string;
+    voltage_v: number;
+    current_a: number;
+    active_power_kw: number;
+    power_factor: number;
+    cumulative_kwh: number;
+  } | null;
 }
 
 interface NetworkConnection {
@@ -31,6 +40,20 @@ interface NetworkConnection {
   lastUpdated: string;
 }
 
+interface MeterReading {
+  id: string;
+  timestamp: string;
+  voltage_v: number;
+  current_a: number;
+  active_power_kw: number;
+  reactive_power_kvar: number;
+  apparent_power_kva: number;
+  power_factor: number;
+  frequency_hz: number;
+  cumulative_kwh: number;
+  ip: string;
+}
+
 interface UserDetailsModalProps {
   user: MonitoredUser;
   onClose: () => void;
@@ -38,6 +61,7 @@ interface UserDetailsModalProps {
 
 export default function UserDetailsModal({ user, onClose }: UserDetailsModalProps) {
   const [connections, setConnections] = useState<NetworkConnection[]>([]);
+  const [meterReadings, setMeterReadings] = useState<MeterReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<any>(null);
@@ -60,6 +84,7 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
       }
 
       setConnections(data.data.connections || []);
+      setMeterReadings(data.data.meterReadings || []);
       setSummary(data.data.summary);
       setError('');
     } catch (err) {
@@ -105,7 +130,7 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{user.deviceName}</h2>
               <p className="text-gray-600 text-sm mt-1">
-                User: {user.username} | Status: 
+                User: {user.username} | Status:
                 <span className={`ml-2 font-semibold ${user.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
                   {user.status.toUpperCase()}
                 </span>
@@ -132,74 +157,56 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
             </div>
           ) : (
             <>
-              {/* Summary Stats */}
-              {summary && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-blue-50 rounded p-3">
-                    <p className="text-gray-600 text-xs font-medium">Total Connections</p>
-                    <p className="text-xl font-bold text-blue-600">{summary.totalConnections}</p>
-                  </div>
-                  <div className="bg-green-50 rounded p-3">
-                    <p className="text-gray-600 text-xs font-medium">Total Bytes In</p>
-                    <p className="text-sm font-bold text-green-600">{formatBytes(summary.totalBytesIn)}</p>
-                  </div>
-                  <div className="bg-purple-50 rounded p-3">
-                    <p className="text-gray-600 text-xs font-medium">Total Bytes Out</p>
-                    <p className="text-sm font-bold text-purple-600">{formatBytes(summary.totalBytesOut)}</p>
-                  </div>
-                  <div className="bg-orange-50 rounded p-3">
-                    <p className="text-gray-600 text-xs font-medium">Unique Dest IPs</p>
-                    <p className="text-xl font-bold text-orange-600">{summary.uniqueDestIps.length}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Connections Table */}
+            {/* Meter Readings Table */}
               <div>
-                <h3 className="font-bold text-gray-900 mb-3">Network Connections</h3>
-                {connections.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No connections detected</p>
+                <h3 className="font-bold text-gray-900 mb-3">Meter Readings</h3>
+                {meterReadings.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No meter readings available</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100 border-b">
                         <tr>
-                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Protocol</th>
-                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Source IP:Port</th>
-                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Dest IP:Port</th>
-                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Bytes In/Out</th>
-                          <th className="text-left px-3 py-2 font-semibold text-gray-700">State</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Timestamp</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Voltage (V)</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Current (A)</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Power (kW)</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Power Factor</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Energy (kWh)</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">IP</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {connections.slice(0, 10).map((conn) => (
-                          <tr key={conn.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-2">
-                              <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">
-                                {conn.protocol}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 font-mono text-xs text-gray-700">
-                              {conn.sourceIp}:{conn.sourcePort}
-                            </td>
-                            <td className="px-3 py-2 font-mono text-xs text-gray-700">
-                              {conn.destIp}:{conn.destPort}
-                            </td>
+                        {meterReadings.slice(0, 10).map((reading) => (
+                          <tr key={reading.id} className="hover:bg-gray-50">
                             <td className="px-3 py-2 text-xs text-gray-700">
-                              {formatBytes(conn.bytesIn)} / {formatBytes(conn.bytesOut)}
+                              {formatDate(reading.timestamp)}
                             </td>
-                            <td className="px-3 py-2 text-xs">
-                              <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded">
-                                {conn.state}
-                              </span>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.voltage_v}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.current_a}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.active_power_kw}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.power_factor}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.cumulative_kwh}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.ip}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    {connections.length > 10 && (
+                    {meterReadings.length > 10 && (
                       <p className="text-gray-500 text-xs mt-2">
-                        Showing 10 of {connections.length} connections
+                        Showing 10 of {meterReadings.length} meter readings
                       </p>
                     )}
                   </div>

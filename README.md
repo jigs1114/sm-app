@@ -155,7 +155,7 @@ python monitor-agent.py --token <TOKEN>
 ## 🔍 Network Monitoring
 
 The agent monitors:
-- **Protocol Types**: TCP, UDP, ICMP
+- **Protocol Types**: TCP, UDP (ICMP and OTHER protocols not supported)
 - **Connection Info**: Source/Dest IP, Ports
 - **Traffic**: Bytes in/out, Packets in/out
 - **Status**: Connection state (ESTABLISHED, LISTEN, etc)

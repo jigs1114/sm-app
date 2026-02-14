@@ -195,7 +195,7 @@ localStorage.removeItem('token') // Remove token
 | Username | Account owner |
 | Status | Online (🟢) or Offline (🔴) |
 | Connections | Number of network connections |
-| Protocols | TCP/UDP/ICMP detected |
+| Protocols | TCP/UDP detected (ICMP/OTHER not supported) |
 | Detected IPs | Source/destination IPs |
 | Last Seen | When device last connected |
 | Action | View Details button |
@@ -282,7 +282,7 @@ python3 monitor-agent.py
 ### How It Works
 1. **Register**: Sends device name to `/api/monitor/register`
 2. **Monitor**: Scans network connections every N seconds
-3. **Filter**: Keeps only TCP/UDP (ignores ICMP, others)
+3. **Filter**: Only accepts TCP/UDP protocols (rejects ICMP and other protocols)
 4. **Report**: Sends new connections to `/api/monitor/connections`
 5. **Repeat**: Continues in loop until interrupted (Ctrl+C)
 

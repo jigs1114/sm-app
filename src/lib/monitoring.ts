@@ -22,7 +22,7 @@ export interface NetworkConnection {
   sourcePort: number;
   destIp: string;
   destPort: number;
-  protocol: 'TCP' | 'UDP' | 'ICMP' | 'OTHER';
+  protocol: 'TCP' | 'UDP';
   bytesIn: number;
   bytesOut: number;
   packetsIn: number;
@@ -32,12 +32,28 @@ export interface NetworkConnection {
   lastUpdated: Date;
 }
 
+export interface MeterReading {
+  id: string;
+  userId: string;
+  timestamp: Date;
+  voltage_v: number;
+  current_a: number;
+  active_power_kw: number;
+  reactive_power_kvar: number;
+  apparent_power_kva: number;
+  power_factor: number;
+  frequency_hz: number;
+  cumulative_kwh: number;
+  ip: string;
+}
+
 export interface MonitoredUser {
   id: string;
   username: string;
   deviceName: string;
   status: 'online' | 'offline';
   connections: NetworkConnection[];
+  meterReadings: MeterReading[];
   lastSeen: Date;
   registeredAt: Date;
 }
@@ -57,6 +73,7 @@ export function registerMonitoredDevice(
     deviceName,
     status: 'online',
     connections: [],
+    meterReadings: [],
     lastSeen: new Date(),
     registeredAt: new Date()
   };
@@ -79,7 +96,7 @@ export function addNetworkConnection(
   sourcePort: number,
   destIp: string,
   destPort: number,
-  protocol: 'TCP' | 'UDP' | 'ICMP' | 'OTHER'
+  protocol: 'TCP' | 'UDP'
 ): NetworkConnection {
   const connection: NetworkConnection = {
     id: `${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -140,4 +157,34 @@ export function getMonitoredUser(userId: string): MonitoredUser | null {
 export function getUserConnections(userId: string): NetworkConnection[] {
   const user = monitoredUsers.get(userId);
   return user ? user.connections : [];
+}
+
+export function addMeterReading(
+  userId: string,
+  reading: Omit<MeterReading, 'id' | 'userId' | 'timestamp'>
+): MeterReading {
+  const meterReading: MeterReading = {
+    id: `${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    userId,
+    timestamp: new Date(),
+    ...reading
+  };
+
+  const user = monitoredUsers.get(userId);
+  if (user) {
+    user.meterReadings.push(meterReading);
+    // Keep only last 100 readings per user
+    if (user.meterReadings.length > 100) {
+      user.meterReadings = user.meterReadings.slice(-100);
+    }
+    user.lastSeen = new Date();
+    user.status = 'online';
+  }
+
+  return meterReading;
+}
+
+export function getUserMeterReadings(userId: string): MeterReading[] {
+  const user = monitoredUsers.get(userId);
+  return user ? user.meterReadings : [];
 }

@@ -9,12 +9,19 @@ interface MonitoredUser {
   deviceName: string;
   status: 'online' | 'offline';
   connectionCount: number;
+  meterReadingCount: number;
   lastSeen: string;
   registeredAt: string;
   protocols: string[];
   uniqueIps: string[];
-  ipv4Addresses: string[];
-  ipv6Addresses: string[];
+  latestMeterReading: {
+    timestamp: string;
+    voltage_v: number;
+    current_a: number;
+    active_power_kw: number;
+    power_factor: number;
+    cumulative_kwh: number;
+  } | null;
 }
 
 interface UserTableProps {
@@ -23,7 +30,7 @@ interface UserTableProps {
 }
 
 export default function UserTable({ users, onSelectUser }: UserTableProps) {
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'connections'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'status' | 'connections' | 'readings'>('name');
 
   const sortedUsers = [...users].sort((a, b) => {
     if (sortBy === 'name') {
@@ -32,6 +39,8 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
       return a.status === 'online' ? -1 : 1;
     } else if (sortBy === 'connections') {
       return b.connectionCount - a.connectionCount;
+    } else if (sortBy === 'readings') {
+      return b.meterReadingCount - a.meterReadingCount;
     }
     return 0;
   });
@@ -60,15 +69,14 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
               onClick={() => setSortBy('connections')}>
               Connections
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              Protocols
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer"
+              onClick={() => setSortBy('readings')}>
+              Meter Readings
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              IPv4 Addresses
+              Latest Reading
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              IPv6 Addresses
-            </th>
+            
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
               Last Seen
             </th>
@@ -101,69 +109,20 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
               <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
                 {user.connectionCount}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex gap-1 flex-wrap">
-                  {user.protocols.length > 0 ? (
-                    user.protocols.map((protocol) => (
-                      <span
-                        key={protocol}
-                        className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded"
-                      >
-                        {protocol}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-gray-400 text-xs">None</span>
-                  )}
-                </div>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
+                {user.meterReadingCount}
               </td>
-              <td className="px-6 py-4">
-                <div className="flex flex-col gap-3 max-w-xs">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-700 mb-1">IPv4:</p>
-                    {user.ipv4Addresses.length > 0 ? (
-                      <div className="flex gap-1 flex-wrap">
-                        {user.ipv4Addresses.slice(0, 2).map((ip) => (
-                          <span
-                            key={ip}
-                            className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded"
-                          >
-                            {ip}
-                          </span>
-                        ))}
-                        {user.ipv4Addresses.length > 2 && (
-                          <span className="text-blue-600 text-xs font-semibold py-1">+{user.ipv4Addresses.length - 2}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-xs">None</span>
-                    )}
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                {user.latestMeterReading ? (
+                  <div className="text-xs">
+                    <div>V: {user.latestMeterReading.voltage_v}V</div>
+                    <div>I: {user.latestMeterReading.current_a}A</div>
+                    <div>P: {user.latestMeterReading.active_power_kw}kW</div>
+                    <div>PF: {user.latestMeterReading.power_factor}</div>
                   </div>
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="flex flex-col gap-3 max-w-xs">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-700 mb-1">IPv6:</p>
-                    {user.ipv6Addresses.length > 0 ? (
-                      <div className="flex gap-1 flex-wrap">
-                        {user.ipv6Addresses.slice(0, 2).map((ip) => (
-                          <span
-                            key={ip}
-                            className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded"
-                          >
-                            {ip.substring(0, 10)}...
-                          </span>
-                        ))}
-                        {user.ipv6Addresses.length > 2 && (
-                          <span className="text-purple-600 text-xs font-semibold py-1">+{user.ipv6Addresses.length - 2}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-xs">None</span>
-                    )}
-                  </div>
-                </div>
+                ) : (
+                  <span className="text-gray-400">No readings</span>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                 {formatDate(user.lastSeen)}

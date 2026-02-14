@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate protocol
-    const validProtocols = ['TCP', 'UDP', 'ICMP', 'OTHER'];
+    // Validate protocol - Only TCP and UDP supported
+    const validProtocols = ['TCP', 'UDP'];
     if (!validProtocols.includes(protocol.toUpperCase())) {
       return NextResponse.json(
-        { error: 'Invalid protocol' },
+        { error: 'Only TCP and UDP protocols are supported' },
         { status: 400 }
       );
     }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       sourcePort || 0,
       destIp,
       destPort || 0,
-      protocol.toUpperCase() as 'TCP' | 'UDP' | 'ICMP' | 'OTHER'
+      protocol.toUpperCase() as 'TCP' | 'UDP'
     );
 
     return NextResponse.json({
