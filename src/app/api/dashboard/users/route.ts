@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: users.map(user => {
-        const allIps = user.connections.flatMap(c => [c.sourceIp, c.destIp]);
+        const connectionIps = user.connections.flatMap(c => [c.sourceIp, c.destIp]);
+        const meterReadingIps = user.meterReadings.map(r => r.ip).filter(ip => ip && ip !== 'unknown');
+        const allIps = [...connectionIps, ...meterReadingIps];
         const latestMeterReading = user.meterReadings.length > 0
           ? user.meterReadings[user.meterReadings.length - 1]
           : null;

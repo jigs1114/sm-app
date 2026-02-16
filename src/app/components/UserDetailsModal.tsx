@@ -52,6 +52,7 @@ interface MeterReading {
   frequency_hz: number;
   cumulative_kwh: number;
   ip: string;
+  protocol: 'TCP' | 'UDP';
 }
 
 interface UserDetailsModalProps {
@@ -173,6 +174,7 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">Power (kW)</th>
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">Power Factor</th>
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">Energy (kWh)</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Protocol</th>
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">IP</th>
                         </tr>
                       </thead>
@@ -196,6 +198,9 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                             </td>
                             <td className="px-3 py-2 text-xs font-mono text-gray-700">
                               {reading.cumulative_kwh}
+                            </td>
+                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                              {reading.protocol}
                             </td>
                             <td className="px-3 py-2 text-xs font-mono text-gray-700">
                               {reading.ip}

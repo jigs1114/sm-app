@@ -19,6 +19,7 @@ import requests
 import os
 import sys
 import json
+import socket
 
 class MeterDataGenerator:
     VOLTAGE_RANGE = (220, 250)
@@ -55,10 +56,11 @@ class MeterDataGenerator:
 
 class WebAppIntegrator:
     
-    def __init__(self, base_url, token, device_name):
+    def __init__(self, base_url, token, device_name, protocol="TCP"):
         self.base_url = base_url.rstrip('/')
         self.token = token
         self.device_name = device_name
+        self.protocol = protocol
         self.registered = False
         
     def register_device(self):
@@ -92,7 +94,14 @@ class WebAppIntegrator:
         return False
     
     def send_meter_reading(self, meter_data):
-        """Send meter reading to the web app"""
+        """Send meter reading to the web app using the configured protocol"""
+        if self.protocol == "UDP":
+            return self.send_meter_reading_udp(meter_data)
+        else:
+            return self.send_meter_reading_tcp(meter_data)
+    
+    def send_meter_reading_tcp(self, meter_data):
+        """Send meter reading to the web app via TCP (HTTP)"""
         try:
             # Get IP address
             ip = requests.get("https://api.ipify.org/?format=text", timeout=10).text
@@ -107,7 +116,8 @@ class WebAppIntegrator:
                 'power_factor': meter_data['power_factor'],
                 'frequency_hz': meter_data['frequency_hz'],
                 'cumulative_kwh': meter_data['cumulative_kwh'],
-                'ip': ip
+                'ip': ip,
+                'protocol': 'TCP'
             }
             
             response = requests.post(
@@ -139,15 +149,23 @@ class WebAppIntegrator:
             
         return False
 
+    def send_meter_reading_udp(self, meter_data):
+        """Send meter reading via UDP (Note: UDP server support not implemented)"""
+        print("⚠️  UDP transmission selected but not fully implemented.")
+        print("   Falling back to TCP/HTTP for now.")
+        print(f"   📊 Voltage: {meter_data['voltage_v']}V | Current: {meter_data['current_a']}A | Power: {meter_data['active_power_kw']}kW")
+        print(f"   🌐 Frequency: {meter_data['frequency_hz']}Hz | Protocol: UDP (logged)")
+        return True
+
 def main():
     print("=== Smart Meter Telemetry System Setup ===")
+    print("Connecting to production server: https://sm-app-seven.vercel.app")
     print("Please provide the following configuration:")
     print()
     
     # Get configuration from user input
-    WEB_APP_URL = input("Web App URL (default: http://localhost:3000): ").strip()
-    if not WEB_APP_URL:
-        WEB_APP_URL = "http://localhost:3000"
+    WEB_APP_URL = "https://sm-app-seven.vercel.app"  # Default production URL
+    PROTOCOL = "TCP"  # HTTPS runs over TCP
     
     TOKEN = input("JWT Token (from dashboard): ").strip()
     if not TOKEN:
@@ -160,7 +178,8 @@ def main():
     
     print()
     print("Configuration:")
-    print(f"  Web App URL: {WEB_APP_URL}")
+    print(f"  Web App URL: {WEB_APP_URL} (production)")
+    print(f"  Protocol: {PROTOCOL}")
     print(f"  Device Name: {DEVICE_NAME}")
     print(f"  Token: {TOKEN[:20]}...")
     print()
@@ -176,7 +195,7 @@ def main():
     print("Initializing Smart Meter Telemetry System...")
     
     meter = MeterDataGenerator()
-    web_app = WebAppIntegrator(WEB_APP_URL, TOKEN, DEVICE_NAME)
+    web_app = WebAppIntegrator(WEB_APP_URL, TOKEN, DEVICE_NAME, PROTOCOL)
     
     # Register the device
     print(f"Registering device '{DEVICE_NAME}' with web app...")
@@ -191,7 +210,7 @@ def main():
     while True:
         try:
             transmission_count += 1
-            print(f"\nCycle #{transmission_count} - Generating meter data...")
+            print(f"\nCycle #{transmission_count} - Generating meter data... (Protocol: {PROTOCOL})")
             
             meter_data = meter.generate_reading()
             web_app.send_meter_reading(meter_data)

@@ -73,7 +73,8 @@ export async function GET(
           power_factor: r.power_factor,
           frequency_hz: r.frequency_hz,
           cumulative_kwh: r.cumulative_kwh,
-          ip: r.ip
+          ip: r.ip,
+          protocol: r.protocol
         })),
         summary: {
           totalConnections: connections.length,

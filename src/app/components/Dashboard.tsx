@@ -270,12 +270,12 @@ export default function Dashboard() {
             >
               Download Agent Script
             </button> */}
-            <button
+            {/* <button
               onClick={downloadMeter}
               className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg transition duration-200 text-sm"
             >
               Download Script
-            </button>
+            </button> */}
           </div>
           <div className='text-sm font-bold text-blue-600 mt-4'>Copy Token: <span onClick={copyToClipboard} className="cursor-pointer ml-2">{copied ? 'Copied!' : 'Click to Copy'}</span></div>
           <div className='text-sm font-bold text-blue-600 mt-2'>Run Script Command: python meter/meter.py</div>

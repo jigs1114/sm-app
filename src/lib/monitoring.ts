@@ -45,6 +45,7 @@ export interface MeterReading {
   frequency_hz: number;
   cumulative_kwh: number;
   ip: string;
+  protocol: 'TCP' | 'UDP';
 }
 
 export interface MonitoredUser {

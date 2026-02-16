@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
       power_factor,
       frequency_hz,
       cumulative_kwh,
-      ip
+      ip,
+      protocol
     } = await request.json();
 
     if (!token) {
@@ -60,7 +61,8 @@ export async function POST(request: NextRequest) {
       power_factor: Number(power_factor),
       frequency_hz: Number(frequency_hz),
       cumulative_kwh: Number(cumulative_kwh),
-      ip: ip || 'unknown'
+      ip: ip || 'unknown',
+      protocol: (protocol === 'TCP' || protocol === 'UDP') ? protocol : 'TCP'
     });
 
     return NextResponse.json({
