@@ -1,24 +1,18 @@
 // app/api/monitor/connections/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 import { addNetworkConnection, updateDeviceStatus } from '@/lib/monitoring';
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, sourceIp, sourcePort, destIp, destPort, protocol } = await request.json();
+    const body = await request.json();
+    // Support both 'token' (old) and 'userId' (new) field names for backward compatibility
+    const userId = body.userId || body.token;
+    const { sourceIp, sourcePort, destIp, destPort, protocol } = body;
 
-    if (!token) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Token required' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
+        { error: 'User ID required' },
+        { status: 400 }
       );
     }
 
@@ -39,11 +33,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Update device status to online
-    updateDeviceStatus(decoded.id, 'online');
+    updateDeviceStatus(userId, 'online');
 
     // Add network connection
     const connection = addNetworkConnection(
-      decoded.id,
+      userId,
       sourceIp,
       sourcePort || 0,
       destIp,

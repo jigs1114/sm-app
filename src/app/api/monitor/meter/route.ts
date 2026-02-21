@@ -1,12 +1,13 @@
 // app/api/monitor/meter/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 import { addMeterReading } from '@/lib/monitoring';
 
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    // Support both 'token' (old) and 'userId' (new) field names for backward compatibility
+    const userId = body.userId || body.token;
     const {
-      token,
       voltage_v,
       current_a,
       active_power_kw,
@@ -17,20 +18,12 @@ export async function POST(request: NextRequest) {
       cumulative_kwh,
       ip,
       protocol
-    } = await request.json();
+    } = body;
 
-    if (!token) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Token required' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
+        { error: 'User ID required' },
+        { status: 400 }
       );
     }
 
@@ -52,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Add meter reading
-    const reading = addMeterReading(decoded.id, {
+    const reading = addMeterReading(userId, {
       voltage_v: Number(voltage_v),
       current_a: Number(current_a),
       active_power_kw: Number(active_power_kw),

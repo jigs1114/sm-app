@@ -87,16 +87,30 @@ export default function Dashboard() {
   };
 
   const copyToClipboard = () => {
-    const text = localStorage.getItem('token') || '';
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch((err) => {
-        console.error('Error copying text: ', err);
-        alert('Failed to copy text');
-      });
+    try {
+      const token = localStorage.getItem('token') || '';
+      // Extract userId from token payload
+      const payload = token.split('.')[1];
+      if (!payload) {
+        alert('Unable to extract User ID from token');
+        return;
+      }
+      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+      const userId = decoded.id || token;
+      
+      navigator.clipboard.writeText(userId)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error('Error copying text: ', err);
+          alert('Failed to copy User ID');
+        });
+    } catch (err) {
+      console.error('Error extracting User ID: ', err);
+      alert('Failed to extract User ID from token');
+    }
   };
 
   const downloadScript = async () => {
@@ -255,13 +269,13 @@ export default function Dashboard() {
           </h3>
           <ol className="list-decimal list-inside space-y-2 text-blue-800">
             <li>Run the meter.py script on your smart meter device</li>
-            <li>Update the script with your web app URL and JWT token</li>
+            <li>Update the script with your web app URL and User ID</li>
             <li>The meter will register automatically and start sending readings</li>
             <li>Meter readings will appear in the table and dashboard</li>
             <li>Click on a device row to view detailed meter logs</li>
           </ol>
           {/* <div className='text-sm text-blue-700 mt-2'>
-            Update WEB_APP_URL and TOKEN in the script before running.
+            Update WEB_APP_URL and USER_ID in the script before running.
           </div> */}
           <div className="mt-4 flex gap-2">
             {/* <button
@@ -277,7 +291,7 @@ export default function Dashboard() {
               Download Script
             </button> */}
           </div>
-          <div className='text-sm font-bold text-blue-600 mt-4'>Copy Token: <span onClick={copyToClipboard} className="cursor-pointer ml-2">{copied ? 'Copied!' : 'Click to Copy'}</span></div>
+          <div className='text-sm font-bold text-blue-600 mt-4'>Copy User ID: <span onClick={copyToClipboard} className="cursor-pointer ml-2">{copied ? 'Copied!' : 'Click to Copy'}</span></div>
           <div className='text-sm font-bold text-blue-600 mt-2'>Run Script Command: python meter/meter.py</div>
         </div>
       </main>
