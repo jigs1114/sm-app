@@ -249,14 +249,14 @@ class WebAppIntegrator:
 def main():
     print("=== Smart Meter Telemetry System Setup ===")
     # print("Connecting to production server: https://sm-app-seven.vercel.app/")
-    print("Connecting to production server: http://localhost:3000/")
+    print("Connecting to production server: http://107.174.11.225:3000")
     print()
     print("IMPORTANT: You must have logged in to the dashboard first!")
     print("   Copy your User ID from the dashboard after login.")
     print()
     
     # Get configuration from user input
-    WEB_APP_URL = "http://localhost:3000/"  # Default production URL
+    WEB_APP_URL = "http://107.174.11.225:3000"  # Default production URL
     # WEB_APP_URL = "https://sm-app-seven.vercel.app"  # Default production URL
     PROTOCOL = "TCP"  # HTTPS runs over TCP
     
