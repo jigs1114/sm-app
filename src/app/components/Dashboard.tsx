@@ -1,7 +1,7 @@
 // app/components/Dashboard.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import UserTable from './UserTable';
 import UserDetailsModal from './UserDetailsModal';
@@ -25,6 +25,7 @@ interface MonitoredUser {
     power_factor: number;
     cumulative_kwh: number;
   } | null;
+  mergedCount?: number;
 }
 
 export default function Dashboard() {
@@ -34,6 +35,10 @@ export default function Dashboard() {
   const [selectedUser, setSelectedUser] = useState<MonitoredUser | null>(null);
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
   const [copied, setCopied] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [userName, setUserName] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const fetchUsers = async () => {
@@ -69,6 +74,17 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // extract userId from token for header display
+    const token = localStorage.getItem('token') || '';
+    try {
+      const payload = token.split('.')[1];
+      if (payload) {
+        const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+        setUserId(decoded.id || token);
+        setUserName(decoded.name || 'User')
+      }
+    } catch { }
+
     fetchUsers();
 
     // Set up auto-refresh every 5 seconds
@@ -83,6 +99,7 @@ export default function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    setMenuOpen(false);
     router.push('/login');
   };
 
@@ -97,7 +114,7 @@ export default function Dashboard() {
       }
       const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
       const userId = decoded.id || token;
-      
+
       navigator.clipboard.writeText(userId)
         .then(() => {
           setCopied(true);
@@ -137,6 +154,18 @@ export default function Dashboard() {
     }
   }
 
+
+  // close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const downloadMeter = async () => {
     try {
       const token = localStorage.getItem('token') || '';
@@ -168,19 +197,46 @@ export default function Dashboard() {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Smart Meter Monitor Dashboard
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              {/* energy icon (bolt) */}
+              <div><svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg> </div><span className="ml-2">Smart Monitor</span>
             </h1>
             <p className="text-gray-600 text-sm mt-1">
               Real-time network monitoring and device management
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
-          >
-            Logout
-          </button>
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500 text-white focus:outline-none"
+            >
+              {/* user icon: simple initials or person SVG */}
+              <span className="font-bold">
+                {userName ? userName.charAt(0).toUpperCase() : '👨🏻'}
+              </span>
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-10">
+                <div
+                  className="px-4 py-2 text-md font-bold text-gray-700 break-all cursor-pointer hover:bg-gray-50"
+
+                >
+                  {userName || 'unknown'} <span className="ml-1 text-gray-400" onClick={copyToClipboard}
+                    title="Click to copy user ID">{copied ? '✅' : '📋'} </span>
+                </div>
+
+                <div className="border-t border-gray-100"></div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -263,37 +319,11 @@ export default function Dashboard() {
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-blue-900 mb-4">
-            Getting Started with Smart Meter Monitoring
-          </h3>
-          <ol className="list-decimal list-inside space-y-2 text-blue-800">
-            <li>Run the meter.py script on your smart meter device</li>
-            <li>Update the script with your web app URL and User ID</li>
-            <li>The meter will register automatically and start sending readings</li>
-            <li>Meter readings will appear in the table and dashboard</li>
-            <li>Click on a device row to view detailed meter logs</li>
-          </ol>
-          {/* <div className='text-sm text-blue-700 mt-2'>
-            Update WEB_APP_URL and USER_ID in the script before running.
-          </div> */}
-          <div className="mt-4 flex gap-2">
-            {/* <button
-              onClick={downloadScript}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 text-sm"
-            >
-              Download Agent Script
-            </button> */}
-            {/* <button
-              onClick={downloadMeter}
-              className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg transition duration-200 text-sm"
-            >
-              Download Script
-            </button> */}
-          </div>
-          <div className='text-sm font-bold text-blue-600 mt-4'>Copy User ID: <span onClick={copyToClipboard} className="cursor-pointer ml-2">{copied ? 'Copied!' : 'Click to Copy'}</span></div>
-          <div className='text-sm font-bold text-blue-600 mt-2'>Run Script Command: python meter/meter.py</div>
-        </div>
+        {/* <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-2"> */}
+
+        {/* <div className='text-sm font-bold text-blue-600'>Copy User ID: <span onClick={copyToClipboard} className="cursor-pointer ml-2">{copied ? 'Copied!' : 'Click to Copy'}</span></div> */}
+        {/* <div className='text-sm font-bold text-blue-600 mt-2'>Run Script Command: python meter/meter.py</div> */}
+        {/* </div> */}
       </main>
 
       {/* User Details Modal */}

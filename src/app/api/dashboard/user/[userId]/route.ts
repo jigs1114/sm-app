@@ -1,7 +1,7 @@
 // app/api/dashboard/user/[userId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getMonitoredUser, getUserConnections, getUserMeterReadings } from '@/lib/monitoring';
+import { getMonitoredUser, getUserConnections, getUserMeterReadings, getUsersByDeviceName } from '@/lib/monitoring';
 
 export async function GET(
   request: NextRequest,
@@ -35,8 +35,17 @@ export async function GET(
       );
     }
 
-    const connections = getUserConnections(userId);
-    const meterReadings = getUserMeterReadings(userId);
+    // gather all entries that have the same deviceName and merge them
+    const allUsers = getUsersByDeviceName(user.deviceName);
+    const connections = allUsers.flatMap(u => getUserConnections(u.id));
+    const meterReadings = allUsers.flatMap(u => getUserMeterReadings(u.id));
+
+    const now = new Date();
+    const OFFLINE_THRESHOLD_MS = 120 * 1000;
+    let status = user.status;
+    if (now.getTime() - new Date(user.lastSeen).getTime() > OFFLINE_THRESHOLD_MS) {
+      status = 'offline';
+    }
 
     return NextResponse.json({
       success: true,
@@ -44,7 +53,7 @@ export async function GET(
         id: user.id,
         username: user.username,
         deviceName: user.deviceName,
-        status: user.status,
+        status,
         lastSeen: user.lastSeen,
         registeredAt: user.registeredAt,
         connections: connections.map(c => ({

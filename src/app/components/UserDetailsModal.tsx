@@ -22,6 +22,7 @@ interface MonitoredUser {
     power_factor: number;
     cumulative_kwh: number;
   } | null;
+  mergedCount?: number;
 }
 
 interface NetworkConnection {
@@ -129,7 +130,14 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
         <div className="border-b border-gray-200 p-6 bg-gradient-to-r from-blue-50 to-purple-50">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{user.deviceName}</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {user.deviceName}
+                {user.mergedCount && user.mergedCount > 1 && (
+                  <span className="ml-2 inline-block px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
+                    {user.mergedCount} entries
+                  </span>
+                )}
+              </h2>
               <p className="text-gray-600 text-sm mt-1">
                 User: {user.username} | Status:
                 <span className={`ml-2 font-semibold ${user.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
@@ -174,7 +182,6 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">Power (kW)</th>
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">Power Factor</th>
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">Energy (kWh)</th>
-                          <th className="text-left px-3 py-2 font-semibold text-gray-700">Protocol</th>
                           <th className="text-left px-3 py-2 font-semibold text-gray-700">IP</th>
                         </tr>
                       </thead>
@@ -199,11 +206,9 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                             <td className="px-3 py-2 text-xs font-mono text-gray-700">
                               {reading.cumulative_kwh}
                             </td>
+                            
                             <td className="px-3 py-2 text-xs font-mono text-gray-700">
-                              {reading.protocol}
-                            </td>
-                            <td className="px-3 py-2 text-xs font-mono text-gray-700">
-                              {reading.ip}
+                              {reading.ip} ({reading.protocol})
                             </td>
                           </tr>
                         ))}

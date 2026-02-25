@@ -122,8 +122,19 @@ class WebAppIntegrator:
             if response.status_code == 200:
                 data = response.json()
                 if data.get('success'):
-                    print(f"[SUCCESS] Device '{self.device_name}' registered successfully")
+                    # if server says entry was reused or returns a different id, adjust
+                    if data.get('reused'):
+                        print(f"[INFO] Device name '{self.device_name}' already registered; reusing existing entry")
                     self.registered = True
+                    # if the returned id differs from what we have, update it
+                    returnedId = data.get('data', {}).get('id')
+                    if returnedId and returnedId != self.user_id:
+                        print(f"[INFO] Adjusting user ID from {self.user_id} to {returnedId}")
+                        self.user_id = returnedId
+                        # regenerate JWT token for new id
+                        self.jwt_token = generate_jwt_token(self.user_id)
+                        if not self.jwt_token:
+                            print("[WARNING] Unable to regenerate JWT for new user ID")
                     return True
                 else:
                     print(f"[ERROR] Registration failed: {data.get('error', 'Unknown error')}")
@@ -139,6 +150,32 @@ class WebAppIntegrator:
             print(f"[ERROR] Registration error: {str(e)}")
             
         return False
+    
+    def update_status(self, status):
+        """Notify the server that this device is online/offline."""
+        if not self.jwt_token:
+            print("[ERROR] Cannot update status without valid JWT token")
+            return False
+        try:
+            payload = {
+                'token': self.jwt_token,
+                'status': status,
+                'deviceName': self.device_name
+            }
+            resp = requests.post(f"{self.base_url}/api/monitor/status", json=payload, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('success'):
+                    print(f"[INFO] Status {status} sent successfully")
+                    return True
+                else:
+                    print(f"[ERROR] Status update failed: {data.get('error', 'Unknown error')}")
+            else:
+                print(f"[ERROR] Status update HTTP {resp.status_code}")
+            return False
+        except Exception as e:
+            print(f"[ERROR] Status update exception: {e}")
+            return False
     
     def send_meter_reading(self, meter_data):
         """Send meter reading to the web app using the configured protocol"""
@@ -159,6 +196,7 @@ class WebAppIntegrator:
             
             payload = {
                 'token': self.jwt_token,
+                'deviceName': self.device_name,                      # new field for server lookup
                 'voltage_v': meter_data['voltage_v'],
                 'current_a': meter_data['current_a'],
                 'active_power_kw': meter_data['active_power_kw'],
@@ -210,16 +248,16 @@ class WebAppIntegrator:
 
 def main():
     print("=== Smart Meter Telemetry System Setup ===")
-    print("Connecting to production server: https://sm-app-seven.vercel.app/")
-    # print("Connecting to production server: http://localhost:3000/")
+    # print("Connecting to production server: https://sm-app-seven.vercel.app/")
+    print("Connecting to production server: http://localhost:3000/")
     print()
     print("IMPORTANT: You must have logged in to the dashboard first!")
     print("   Copy your User ID from the dashboard after login.")
     print()
     
     # Get configuration from user input
-    # WEB_APP_URL = "http://localhost:3000/"  # Default production URL
-    WEB_APP_URL = "https://sm-app-seven.vercel.app"  # Default production URL
+    WEB_APP_URL = "http://localhost:3000/"  # Default production URL
+    # WEB_APP_URL = "https://sm-app-seven.vercel.app"  # Default production URL
     PROTOCOL = "TCP"  # HTTPS runs over TCP
     
     USER_ID = input("Enter your User ID (from dashboard): ").strip()
@@ -230,6 +268,8 @@ def main():
     DEVICE_NAME = input("Device Name (default: Smart Meter 001): ").strip()
     if not DEVICE_NAME:
         DEVICE_NAME = "Smart Meter 001"
+
+    print("\nNote: if a device with the same name is already registered, the meter will reuse that entry and may update the user ID accordingly.")
     
     print()
     print("Configuration:")
@@ -249,6 +289,8 @@ def main():
     if not web_app.register_device():
         print("[ERROR] Failed to register device. Please check your User ID and web app URL.")
         sys.exit(1)
+    # notify server that device is online immediately after registering
+    web_app.update_status('online')
     
     print("System initialized. Starting data transmission every 35 seconds...")
     print("Press Ctrl+C to terminate the application\n")
@@ -257,7 +299,7 @@ def main():
     while True:
         try:
             transmission_count += 1
-            print(f"\nCycle #{transmission_count} - Generating meter data... (Protocol: {PROTOCOL})")
+            print(f"\nCycle #{transmission_count} - Generating meter data...")
             
             meter_data = meter.generate_reading()
             web_app.send_meter_reading(meter_data)
@@ -266,9 +308,16 @@ def main():
             
         except KeyboardInterrupt:
             print("\n\n[INFO] Application terminated by user")
+            # inform server that we're going offline
+            web_app.update_status('offline')
             break
         except Exception as e:
             print(f"Unexpected system error: {e}")
+            # try to report offline before sleeping, in case of fatal error
+            try:
+                web_app.update_status('offline')
+            except:
+                pass
             time.sleep(35)
 
 if __name__ == "__main__":

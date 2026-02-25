@@ -22,6 +22,7 @@ interface MonitoredUser {
     power_factor: number;
     cumulative_kwh: number;
   } | null;
+  mergedCount?: number; // optional field added by backend
 }
 
 interface UserTableProps {
@@ -90,9 +91,15 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
         </thead>
         <tbody className="divide-y divide-gray-200">
           {sortedUsers.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50 transition duration-150 cursor-pointer">
-              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+            // deviceName is now considered unique across the list (backend dedupes)
+            <tr key={user.deviceName} className="hover:bg-gray-50 transition duration-150 cursor-pointer">
+              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center">
                 {user.deviceName}
+                {user.mergedCount && user.mergedCount > 1 && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                    ×{user.mergedCount}
+                  </span>
+                )}
               </td>
               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                 {user.username}

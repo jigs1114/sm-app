@@ -63,11 +63,32 @@ export interface MonitoredUser {
 let monitoredUsers: Map<string, MonitoredUser> = new Map();
 let networkConnections: Map<string, NetworkConnection> = new Map();
 
-export function registerMonitoredDevice(
+// return type updated to include indicator whether a new entry was created
+export function   registerMonitoredDevice(
   userId: string,
   username: string,
   deviceName: string
-): MonitoredUser {
+): {
+  [x: string]: any; user: MonitoredUser; isNew: boolean 
+} {
+  // look for existing entry by deviceName (case sensitive for now)
+  const existing = Array.from(monitoredUsers.values()).find(
+    (u) => u.deviceName === deviceName
+  );
+
+  if (existing) {
+    // update some properties in case username or status changed
+    existing.username = username;
+    existing.lastSeen = new Date();
+    existing.status = 'online';
+
+    // we are reusing an existing record regardless of the provided userId
+    // (the meter script will be informed via the `reused` flag and can
+    // adjust its local id/token accordingly).  `isNew` therefore must be
+    // false so callers know no new entry was created.
+    return { user: existing, isNew: false };
+  }
+
   const monitoredUser: MonitoredUser = {
     id: userId,
     username,
@@ -80,7 +101,7 @@ export function registerMonitoredDevice(
   };
 
   monitoredUsers.set(userId, monitoredUser);
-  return monitoredUser;
+  return { user: monitoredUser, isNew: true };
 }
 
 export function updateDeviceStatus(userId: string, status: 'online' | 'offline'): void {
@@ -89,6 +110,26 @@ export function updateDeviceStatus(userId: string, status: 'online' | 'offline')
     user.status = status;
     user.lastSeen = new Date();
   }
+}
+
+// helper used by status endpoint
+export function markDeviceStatus(
+  userId: string | undefined,
+  deviceName: string | undefined,
+  status: 'online' | 'offline'
+): boolean {
+  if (userId && monitoredUsers.has(userId)) {
+    updateDeviceStatus(userId, status);
+    return true;
+  }
+  if (deviceName) {
+    const found = findUserByDeviceName(deviceName);
+    if (found) {
+      updateDeviceStatus(found.id, status);
+      return true;
+    }
+  }
+  return false;
 }
 
 export function addNetworkConnection(
@@ -188,4 +229,22 @@ export function addMeterReading(
 export function getUserMeterReadings(userId: string): MeterReading[] {
   const user = monitoredUsers.get(userId);
   return user ? user.meterReadings : [];
+}
+
+/**
+ * Return list of monitored users that share the same deviceName.  This is
+ * useful when the frontend has already deduplicated by name but a detail
+ * view wants to combine data from multiple underlying ids.
+ */
+export function getUsersByDeviceName(deviceName: string): MonitoredUser[] {
+  return Array.from(monitoredUsers.values()).filter(u => u.deviceName === deviceName);
+}
+
+// helper used by API routes
+export function hasMonitoredUser(userId: string): boolean {
+  return monitoredUsers.has(userId);
+}
+
+export function findUserByDeviceName(deviceName: string): MonitoredUser | undefined {
+  return Array.from(monitoredUsers.values()).find(u => u.deviceName === deviceName);
 }

@@ -27,17 +27,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const monitoredUser = registerMonitoredDevice(
+    const { user: monitoredUser, isNew } = registerMonitoredDevice(
       userId,
       'Device User',
       deviceName
     );
 
-    console.log('[REGISTER] Device registered successfully:', userId);
+    if (isNew) {
+      console.log('[REGISTER] Created new device entry for', deviceName);
+    } else {
+      console.log('[REGISTER] Found existing device entry for', deviceName);
+    }
 
     return NextResponse.json({
       success: true,
-      data: monitoredUser
+      data: monitoredUser,
+      reused: !isNew
     });
   } catch (error) {
     console.log('[REGISTER] Error:', error);

@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
     const token = generateToken({
       id: user.id,
       username: user.username,
-      email: user.email
+      email: user.email,
+      name:user.name
     });
 
     return NextResponse.json({
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        name:user.name
       }
     });
   } catch (error) {

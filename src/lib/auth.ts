@@ -49,6 +49,7 @@ export function verifyToken(token: string): any {
 interface User {
   id: string;
   username: string;
+  name?: string;
   password: string;
   email: string;
   createdAt: Date;
@@ -56,9 +57,18 @@ interface User {
 
 let users: User[] = [
   {
-    id: 'admin-default-id',
+    id: '39ba4524-d807-4457-99b4-79bc85d6aba4',
     username: 'admin',
+    name: 'Admin User',
     email: 'admin@example.com',
+    password: '$2b$10$0exJkYXPMPl8BK5b7s/L/.Xzsi.L2Z9hFDW5nm9aaRsaTSJU8mSCa',
+    createdAt: new Date()
+  },
+  {
+    id: '54043afc-de58-49db-9be3-23e81493b4dd',
+    username: '29a12n19d92',
+    name: 'Anand Waghela',
+    email: 'and@smapp.com',
     password: '$2b$10$0exJkYXPMPl8BK5b7s/L/.Xzsi.L2Z9hFDW5nm9aaRsaTSJU8mSCa',
     createdAt: new Date()
   }
