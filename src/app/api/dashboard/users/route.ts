@@ -1,7 +1,7 @@
 // app/api/dashboard/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getAllMonitoredUsers } from '@/lib/monitoring';
+import { getAllMonitoredUsers, MonitoredUser } from '@/lib/monitoring';
 
 export async function GET(request: NextRequest) {
   try {
