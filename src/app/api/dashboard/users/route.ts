@@ -24,14 +24,19 @@ export async function GET(request: NextRequest) {
 
     let users = getAllMonitoredUsers();
 
-    // deduplicate by deviceName so frontend never sees two rows with same name
+    // deduplicate by deviceName **and username**.  previously the
+    // dashboard collapsed multiple entries with the same name, which meant
+    // two different accounts using identical device names would only show a
+    // single row.  we still want to merge duplicates that belong to the
+    // *same* user (e.g. script re-registered with a new token), but not
+    // across users.
     interface Aggregated extends MonitoredUser {
       mergedCount: number;
     }
     const dedupMap: Record<string, Aggregated> = {};
 
     users.forEach((u) => {
-      const key = u.deviceName;
+      const key = `${u.username}:${u.deviceName}`;
       if (!dedupMap[key]) {
         dedupMap[key] = { ...u, mergedCount: 1 } as Aggregated;
       } else {
@@ -46,7 +51,9 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const dedupedUsers = Object.values(dedupMap as Record<string, MonitoredUser & {mergedCount: number}>);
+    const dedupedUsers = Object.values(
+      dedupMap as Record<string, MonitoredUser & {mergedCount: number}>
+    );
 
     const now = new Date();
     const OFFLINE_THRESHOLD_MS = 120 * 1000; // 2 minutes without updates -> offline

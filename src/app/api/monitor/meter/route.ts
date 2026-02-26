@@ -1,6 +1,6 @@
 // app/api/monitor/meter/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { addMeterReading, hasMonitoredUser, findUserByDeviceName, registerMonitoredDevice } from '@/lib/monitoring';
+import { addMeterReading, hasMonitoredUser, findUserByDeviceName, getUsersByDeviceName, registerMonitoredDevice } from '@/lib/monitoring';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,10 +27,20 @@ export async function POST(request: NextRequest) {
     // deviceName. this covers cases where the script re-registered and
     // started using a different token before the dashboard refreshed.
     if (!hasMonitoredUser(realUserId) && deviceName) {
-      const existing = findUserByDeviceName(deviceName);
-      if (existing) {
-        realUserId = existing.id;
+      // if the token/userId was not recognized, try locating by name.  only
+      // fall back when there is a single match to avoid delivering readings
+      // into the wrong account if two users happen to use the same device
+      // name.
+      const candidates = getUsersByDeviceName(deviceName);
+      if (candidates.length === 1) {
+        realUserId = candidates[0].id;
         console.log('[METER] Fallback to userId from deviceName', deviceName);
+      } else if (candidates.length > 1) {
+        console.warn(
+          '[METER] multiple users share deviceName',
+          deviceName,
+          'skipping fallback'
+        );
       }
     }
 

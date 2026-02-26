@@ -64,28 +64,26 @@ let monitoredUsers: Map<string, MonitoredUser> = new Map();
 let networkConnections: Map<string, NetworkConnection> = new Map();
 
 // return type updated to include indicator whether a new entry was created
-export function   registerMonitoredDevice(
+export function registerMonitoredDevice(
   userId: string,
   username: string,
   deviceName: string
 ): {
   [x: string]: any; user: MonitoredUser; isNew: boolean 
 } {
-  // look for existing entry by deviceName (case sensitive for now)
-  const existing = Array.from(monitoredUsers.values()).find(
-    (u) => u.deviceName === deviceName
-  );
+  // previously we deduped purely by deviceName, which meant that two
+  // different users registering devices with the same name would end up
+  // sharing a single entry (visible to both users).  To make each entry
+  // user‑specific we first check for an existing record matching the
+  // provided *userId*; only if the exact user already exists do we reuse it.
 
+  const existing = monitoredUsers.get(userId);
   if (existing) {
-    // update some properties in case username or status changed
+    // update some fields in case username or deviceName/ status changed
     existing.username = username;
+    existing.deviceName = deviceName;
     existing.lastSeen = new Date();
     existing.status = 'online';
-
-    // we are reusing an existing record regardless of the provided userId
-    // (the meter script will be informed via the `reused` flag and can
-    // adjust its local id/token accordingly).  `isNew` therefore must be
-    // false so callers know no new entry was created.
     return { user: existing, isNew: false };
   }
 
@@ -246,5 +244,8 @@ export function hasMonitoredUser(userId: string): boolean {
 }
 
 export function findUserByDeviceName(deviceName: string): MonitoredUser | undefined {
+  // return the first match; callers should be aware there may be multiple
+  // users with the same device name now that registration is scoped per
+  // user.  Use `getUsersByDeviceName` if you need all of them.
   return Array.from(monitoredUsers.values()).find(u => u.deviceName === deviceName);
 }

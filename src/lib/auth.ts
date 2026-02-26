@@ -66,10 +66,10 @@ let users: User[] = [
   },
   {
     id: '54043afc-de58-49db-9be3-23e81493b4dd',
-    username: '29a12n19d92',
+    username: 'spowrltenvtr',
     name: 'Anand Waghela',
     email: 'and@smapp.com',
-    password: '$2b$10$0exJkYXPMPl8BK5b7s/L/.Xzsi.L2Z9hFDW5nm9aaRsaTSJU8mSCa',
+    password: '$2a$10$R8/fcCXi/SYHf6NPAasaCuc.UlEaYcLFWVj.p8xUhbgu4uYZdX4tW',
     createdAt: new Date()
   }
 ];

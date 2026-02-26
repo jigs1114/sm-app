@@ -112,17 +112,50 @@ export default function Dashboard() {
         alert('Unable to extract User ID from token');
         return;
       }
-      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+      // decode base64 payload in a browser-safe way
+      let decoded: any;
+      try {
+        decoded = JSON.parse(atob(payload));
+      } catch {
+        // fall back to Buffer in case bundler provides it (legacy support)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        decoded = JSON.parse(typeof Buffer !== 'undefined' ? Buffer.from(payload, 'base64').toString() : '{}');
+      }
       const userId = decoded.id || token;
 
-      navigator.clipboard.writeText(userId)
+      const doCopy = (text: string) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text);
+        }
+        // fallback for insecure contexts / older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          return Promise.resolve();
+        } catch (e) {
+          return Promise.reject(e);
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      };
+
+      doCopy(userId)
         .then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         })
         .catch((err) => {
           console.error('Error copying text: ', err);
-          alert('Failed to copy User ID');
+          // fallback: provide the text directly so user can manually copy
+          alert(`Failed to copy User ID automatically. Your ID is:\n${userId}`);
         });
     } catch (err) {
       console.error('Error extracting User ID: ', err);

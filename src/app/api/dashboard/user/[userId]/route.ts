@@ -35,8 +35,13 @@ export async function GET(
       );
     }
 
-    // gather all entries that have the same deviceName and merge them
-    const allUsers = getUsersByDeviceName(user.deviceName);
+    // gather all entries that have the same deviceName *and username*.
+    // this ensures that two different accounts with identical names do
+    // not see each other's data; merging only happens when a single user
+    // has multiple underlying ids/tokens for the same device.
+    const allUsers = getUsersByDeviceName(user.deviceName).filter(
+      u => u.username === user.username
+    );
     const connections = allUsers.flatMap(u => getUserConnections(u.id));
     const meterReadings = allUsers.flatMap(u => getUserMeterReadings(u.id));
 
