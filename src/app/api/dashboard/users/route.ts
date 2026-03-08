@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     );
 
     const now = new Date();
-    const OFFLINE_THRESHOLD_MS = 30 * 1000; // 30 seconds without updates -> offline
+    const OFFLINE_THRESHOLD_MS = 45 * 1000; // 45 seconds without updates -> offline (reduced from 30s to account for 35s transmission interval)
 
     return NextResponse.json({
       success: true,

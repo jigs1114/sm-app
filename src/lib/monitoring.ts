@@ -231,8 +231,15 @@ export function addMeterReading(
     console.log('[MONITOR] Trimmed readings from', oldCount, 'to', user.meterReadings.length);
   }
   
+  // Update lastSeen and set status to online
+  // Only set to online if it was previously offline or if this is the first reading
+  const wasOffline = user.status === 'offline';
   user.lastSeen = new Date();
   user.status = 'online';
+  
+  if (wasOffline) {
+    console.log('[MONITOR] Device status changed from offline to online for userId:', userId);
+  }
   
   return meterReading;
 }

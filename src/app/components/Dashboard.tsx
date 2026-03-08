@@ -88,8 +88,8 @@ export default function Dashboard() {
 
     fetchUsers();
 
-    // Set up auto-refresh every 5 seconds
-    const interval = setInterval(fetchUsers, 5000);
+    // Set up auto-refresh every 3 seconds for better real-time status
+    const interval = setInterval(fetchUsers, 3000);
     setRefreshInterval(interval);
 
     return () => {
