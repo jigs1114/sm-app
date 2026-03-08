@@ -306,15 +306,15 @@ def main():
     if not web_app.register_device():
         print("[ERROR] Failed to register device. Please check your User ID and web app URL.")
         sys.exit(1)
-    # notify server that device is online immediately after registering
-    web_app.update_status('online')
     
     print("System initialized. Starting data transmission every 35 seconds...")
     print("Press Ctrl+C to terminate the application")
-    print("Note: Device will remain online after termination (use --offline to set offline)")
+    print("Note: Device will be set to online after first successful transmission")
+    print("       Device will remain online after termination (use --offline to set offline)")
     print()
     
     transmission_count = 0
+    first_successful_transmission = False
     while True:
         try:
             transmission_count += 1
@@ -323,7 +323,12 @@ def main():
             meter_data = meter.generate_reading()
             success = web_app.send_meter_reading(meter_data)
             
-            if not success:
+            if success:
+                if not first_successful_transmission:
+                    print("[INFO] First successful transmission - setting device to online")
+                    web_app.update_status('online')
+                    first_successful_transmission = True
+            else:
                 print(f"[WARNING] Cycle #{transmission_count} failed to transmit meter reading")
                 print("   Check network connection and server status")
             
