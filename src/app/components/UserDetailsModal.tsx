@@ -68,6 +68,8 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<any>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchUserDetails = async () => {
     try {
@@ -88,6 +90,7 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
       setConnections(data.data.connections || []);
       setMeterReadings(data.data.meterReadings || []);
       setSummary(data.data.summary);
+      setCurrentPage(1);
       setError('');
     } catch (err) {
       setError('Failed to load user details');
@@ -121,6 +124,19 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString();
+  };
+
+  const sortedMeterReadings = [...meterReadings].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+
+  const totalPages = Math.ceil(sortedMeterReadings.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentReadings = sortedMeterReadings.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   return (
@@ -186,7 +202,7 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {meterReadings.slice(0, 10).map((reading) => (
+                        {currentReadings.map((reading) => (
                           <tr key={reading.id} className="hover:bg-gray-50">
                             <td className="px-3 py-2 text-xs text-gray-700">
                               {formatDate(reading.timestamp)}
@@ -214,10 +230,41 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                         ))}
                       </tbody>
                     </table>
-                    {meterReadings.length > 10 && (
-                      <p className="text-gray-500 text-xs mt-2">
-                        Showing 10 of {meterReadings.length} meter readings
-                      </p>
+                    {totalPages > 1 && (
+                      <div className="flex justify-between items-center mt-4">
+                        <div className="text-sm text-gray-600">
+                          Showing {startIndex + 1} to {Math.min(endIndex, sortedMeterReadings.length)} of {sortedMeterReadings.length} entries
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Previous
+                          </button>
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                              key={page}
+                              onClick={() => handlePageChange(page)}
+                              className={`px-3 py-1 text-sm border rounded ${
+                                currentPage === page 
+                                  ? 'bg-blue-600 text-white border-blue-600' 
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
