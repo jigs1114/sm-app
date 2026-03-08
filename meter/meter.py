@@ -247,8 +247,15 @@ class WebAppIntegrator:
         return True
 
 def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Smart Meter Telemetry System')
+    parser.add_argument('--offline', action='store_true', 
+                       help='Set device status to offline and exit')
+    args = parser.parse_args()
+    
     print("=== Smart Meter Telemetry System Setup ===")
-    print("Connecting to production server: http://107.174.11.225:3000")
+    # print("Connecting to production server: http://107.174.11.225:3000")
     print("Connecting to production server: http://localhost:3000")
     print()
     print("IMPORTANT: You must have logged in to the dashboard first!")
@@ -256,8 +263,8 @@ def main():
     print()
     
     # Get configuration from user input
-    # WEB_APP_URL = "http://localhost:3000"  # Default production URL
-    WEB_APP_URL = "http://107.174.11.225:3000"  # Default production URL
+    WEB_APP_URL = "http://localhost:3000"  # Default production URL
+    # WEB_APP_URL = "http://107.174.11.225:3000"  # Default production URL
     PROTOCOL = "TCP"  # HTTPS runs over TCP
     
     USER_ID = input("Enter your User ID (from dashboard): ").strip()
@@ -281,8 +288,18 @@ def main():
 
     print("Initializing Smart Meter Telemetry System...")
     
-    meter = MeterDataGenerator()
     web_app = WebAppIntegrator(WEB_APP_URL, USER_ID, DEVICE_NAME, PROTOCOL)
+    
+    # Handle offline mode
+    if args.offline:
+        print(f"Setting device '{DEVICE_NAME}' to offline status...")
+        if web_app.update_status('offline'):
+            print("[SUCCESS] Device status set to offline")
+        else:
+            print("[ERROR] Failed to set device status to offline")
+        return
+    
+    meter = MeterDataGenerator()
     
     # Register the device
     print(f"Registering device '{DEVICE_NAME}' with User ID '{USER_ID}'...")
@@ -293,7 +310,9 @@ def main():
     web_app.update_status('online')
     
     print("System initialized. Starting data transmission every 35 seconds...")
-    print("Press Ctrl+C to terminate the application\n")
+    print("Press Ctrl+C to terminate the application")
+    print("Note: Device will remain online after termination (use --offline to set offline)")
+    print()
     
     transmission_count = 0
     while True:
@@ -302,19 +321,25 @@ def main():
             print(f"\nCycle #{transmission_count} - Generating meter data...")
             
             meter_data = meter.generate_reading()
-            web_app.send_meter_reading(meter_data)
+            success = web_app.send_meter_reading(meter_data)
+            
+            if not success:
+                print(f"[WARNING] Cycle #{transmission_count} failed to transmit meter reading")
+                print("   Check network connection and server status")
             
             time.sleep(35)
             
         except KeyboardInterrupt:
             print("\n\n[INFO] Application terminated by user")
-            # inform server that we're going offline
+            # Set device offline immediately for better status management
+            print("[INFO] Setting device status to offline...")
             web_app.update_status('offline')
             break
         except Exception as e:
             print(f"Unexpected system error: {e}")
-            # try to report offline before sleeping, in case of fatal error
+            # Set offline on exceptions too for better status tracking
             try:
+                print("[INFO] Setting device status to offline due to error...")
                 web_app.update_status('offline')
             except:
                 pass

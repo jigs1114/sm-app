@@ -1,6 +1,6 @@
 // app/api/monitor/meter/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { addMeterReading, hasMonitoredUser, findUserByDeviceName, getUsersByDeviceName, registerMonitoredDevice } from '@/lib/monitoring';
+import { addMeterReading, hasMonitoredUser, findUserByDeviceName, getUsersByDeviceName, registerMonitoredDevice, getMonitoredUser } from '@/lib/monitoring';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,11 +36,13 @@ export async function POST(request: NextRequest) {
         realUserId = candidates[0].id;
         console.log('[METER] Fallback to userId from deviceName', deviceName);
       } else if (candidates.length > 1) {
-        console.warn(
-          '[METER] multiple users share deviceName',
-          deviceName,
-          'skipping fallback'
-        );
+        // Try to find the user by matching the original userId pattern
+        // or fall back to the most recently updated user
+        const mostRecentUser = candidates.reduce((latest, current) => {
+          return new Date(current.lastSeen) > new Date(latest.lastSeen) ? current : latest;
+        });
+        realUserId = mostRecentUser.id;
+        console.log('[METER] Multiple users with deviceName, using most recent:', deviceName, realUserId);
       }
     }
 
@@ -83,7 +85,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Add meter reading
-    console.log('[METER] incoming reading', { userId: realUserId, deviceName });
+    console.log('[METER] incoming reading', { userId: realUserId, deviceName, originalUserId: userId });
+
+    // Add debug logging to track user entries
+    const user = getMonitoredUser(realUserId);
+    if (!user) {
+      console.error('[METER] ERROR - User not found after ID resolution:', { realUserId, deviceName, originalUserId: userId });
+      return NextResponse.json(
+        { error: 'User not found after ID resolution' },
+        { status: 404 }
+      );
+    }
+
+    console.log('[METER] User found, current readings count:', user.meterReadings.length);
+
     const reading = addMeterReading(realUserId, {
       voltage_v: Number(voltage_v),
       current_a: Number(current_a),
@@ -96,6 +111,8 @@ export async function POST(request: NextRequest) {
       ip: ip || 'unknown',
       protocol: (protocol === 'TCP' || protocol === 'UDP') ? protocol : 'TCP'
     });
+
+    console.log('[METER] Reading added, new count:', user.meterReadings.length);
 
     return NextResponse.json({
       success: true,

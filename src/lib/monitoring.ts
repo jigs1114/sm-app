@@ -203,6 +203,17 @@ export function addMeterReading(
   userId: string,
   reading: Omit<MeterReading, 'id' | 'userId' | 'timestamp'>
 ): MeterReading {
+  console.log('[MONITOR] addMeterReading called for userId:', userId);
+  
+  const user = monitoredUsers.get(userId);
+  if (!user) {
+    console.error('[MONITOR] ERROR - User not found in addMeterReading:', userId);
+    console.log('[MONITOR] Available users:', Array.from(monitoredUsers.keys()));
+    throw new Error(`User ${userId} not found`);
+  }
+  
+  console.log('[MONITOR] User found, current readings count:', user.meterReadings.length);
+  
   const meterReading: MeterReading = {
     id: `${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     userId,
@@ -210,17 +221,19 @@ export function addMeterReading(
     ...reading
   };
 
-  const user = monitoredUsers.get(userId);
-  if (user) {
-    user.meterReadings.push(meterReading);
-    // Keep only last 100 readings per user
-    if (user.meterReadings.length > 100) {
-      user.meterReadings = user.meterReadings.slice(-100);
-    }
-    user.lastSeen = new Date();
-    user.status = 'online';
+  user.meterReadings.push(meterReading);
+  console.log('[MONITOR] Reading added, new count:', user.meterReadings.length);
+  
+  // Keep only last 100 readings per user
+  if (user.meterReadings.length > 100) {
+    const oldCount = user.meterReadings.length;
+    user.meterReadings = user.meterReadings.slice(-100);
+    console.log('[MONITOR] Trimmed readings from', oldCount, 'to', user.meterReadings.length);
   }
-
+  
+  user.lastSeen = new Date();
+  user.status = 'online';
+  
   return meterReading;
 }
 

@@ -46,7 +46,7 @@ export async function GET(
     const meterReadings = allUsers.flatMap(u => getUserMeterReadings(u.id));
 
     const now = new Date();
-    const OFFLINE_THRESHOLD_MS = 120 * 1000;
+    const OFFLINE_THRESHOLD_MS = 30 * 1000;
     let status = user.status;
     if (now.getTime() - new Date(user.lastSeen).getTime() > OFFLINE_THRESHOLD_MS) {
       status = 'offline';

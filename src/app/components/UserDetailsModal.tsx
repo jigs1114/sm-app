@@ -208,7 +208,7 @@ export default function UserDetailsModal({ user, onClose }: UserDetailsModalProp
                             </td>
                             
                             <td className="px-3 py-2 text-xs font-mono text-gray-700">
-                              {reading.ip} ({reading.protocol})
+                              {reading.ip}
                             </td>
                           </tr>
                         ))}

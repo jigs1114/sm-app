@@ -81,7 +81,8 @@ export default function Dashboard() {
       if (payload) {
         const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
         setUserId(decoded.id || token);
-        setUserName(decoded.name || 'User')
+        const username = decoded.username?.toUpperCase() || 'User';
+        setUserName(username)
       }
     } catch { }
 
@@ -234,10 +235,10 @@ export default function Dashboard() {
               {/* energy icon (bolt) */}
               <div><svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg> </div><span className="ml-2">Smart Monitor</span>
+              </svg> </div><span className="ml-2 tracking-wide">{`Smart Monitor`.toUpperCase()}</span>
             </h1>
-            <p className="text-gray-600 text-sm mt-1">
-              Real-time network monitoring and device management
+            <p className="text-gray-600 text-xs mt-1 tracking-wide text-center">
+              {`Real-time monitoring and device management`.toUpperCase()}
             </p>
           </div>
           <div ref={menuRef} className="relative">
@@ -276,7 +277,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-gray-500 text-sm font-medium">Total Devices</h3>
             <p className="text-3xl font-bold text-blue-600 mt-2">{users.length}</p>
@@ -293,12 +294,7 @@ export default function Dashboard() {
               {users.filter(u => u.status === 'offline').length}
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-gray-500 text-sm font-medium">Total Connections</h3>
-            <p className="text-3xl font-bold text-purple-600 mt-2">
-              {users.reduce((sum, u) => sum + u.connectionCount, 0)}
-            </p>
-          </div>
+       
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-gray-500 text-sm font-medium">Meter Readings</h3>
             <p className="text-3xl font-bold text-orange-600 mt-2">
@@ -318,20 +314,10 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Monitored Devices
+              <h2 className="text-xl font-bold text-gray-900">
+                {`Monitored Devices`.toUpperCase()}
               </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={fetchUsers}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
-                >
-                  Refresh Now
-                </button>
-                <span className="text-sm text-gray-500 py-2">
-                  Auto-refreshing every 5 seconds
-                </span>
-              </div>
+             
             </div>
           </div>
 

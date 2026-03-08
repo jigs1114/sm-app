@@ -1,6 +1,6 @@
 # Smart Meter Monitor App
 
-A comprehensive real-time network monitoring and device management application built with Next.js. Monitor TCP/UDP connections from multiple devices with a centralized dashboard, authentication system, and live data streaming.
+A comprehensive real-time monitoring and device management application built with Next.js. Monitor TCP/UDP connections from multiple devices with a centralized dashboard, authentication system, and live data streaming.
 
 ## 🚀 Quick Start
 

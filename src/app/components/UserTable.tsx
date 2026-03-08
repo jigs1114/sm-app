@@ -67,20 +67,16 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
               Status
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer"
-              onClick={() => setSortBy('connections')}>
-              Connections
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer"
               onClick={() => setSortBy('readings')}>
               Readings
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              Detected IPs
+              Detected IP
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
               Latest Reading
             </th>
-            
+
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
               Last Seen
             </th>
@@ -105,20 +101,16 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
                 {user.username}
               </td>
               <td className="px-4 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                  user.status === 'online'
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${user.status === 'online'
                     ? 'bg-green-100 text-green-800'
                     : 'bg-red-100 text-red-800'
-                }`}>
-                  <span className={`inline-flex rounded-full h-2 w-2 mr-2 ${
-                    user.status === 'online' ? 'bg-green-600' : 'bg-red-600'
-                  }`}></span>
+                  }`}>
+                  <span className={`inline-flex rounded-full h-2 w-2 mr-2 ${user.status === 'online' ? 'bg-green-600' : 'bg-red-600'
+                    }`}></span>
                   {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                 </span>
               </td>
-              <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
-                {user.connectionCount}
-              </td>
+
               <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
                 {user.meterReadingCount}
               </td>
