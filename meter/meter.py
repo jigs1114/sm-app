@@ -91,10 +91,15 @@ class MeterDataGenerator:
 class WebAppIntegrator:
     
     def __init__(self, base_url, user_id, device_name, protocol="TCP"):
+        # Validate protocol - only accept TCP or UDP
+        if protocol.upper() not in ["TCP", "UDP"]:
+            print(f"[ERROR] Protocol '{protocol}' not supported. Only TCP and UDP are allowed.")
+            raise ValueError(f"Protocol '{protocol}' not supported. Only TCP and UDP are allowed.")
+        
         self.base_url = base_url.rstrip('/')
         self.user_id = user_id
         self.device_name = device_name
-        self.protocol = protocol
+        self.protocol = protocol.upper()  # Store in uppercase for consistency
         self.registered = False
         # Generate JWT token at initialization
         self.jwt_token = generate_jwt_token(user_id)

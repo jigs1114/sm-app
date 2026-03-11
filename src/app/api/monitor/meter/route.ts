@@ -84,6 +84,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate protocol - Only TCP and UDP supported
+    if (protocol && protocol !== 'TCP' && protocol !== 'UDP') {
+      return NextResponse.json(
+        { error: 'Only TCP and UDP protocols are supported' },
+        { status: 400 }
+      );
+    }
+
     // Add meter reading
     console.log('[METER] incoming reading', { userId: realUserId, deviceName, originalUserId: userId });
 
