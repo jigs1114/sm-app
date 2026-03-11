@@ -71,15 +71,10 @@ export function registerMonitoredDevice(
 ): {
   [x: string]: any; user: MonitoredUser; isNew: boolean 
 } {
-  // previously we deduped purely by deviceName, which meant that two
-  // different users registering devices with the same name would end up
-  // sharing a single entry (visible to both users).  To make each entry
-  // user‑specific we first check for an existing record matching the
-  // provided *userId*; only if the exact user already exists do we reuse it.
-
+  // First check if there's an existing record for this userId
   const existing = monitoredUsers.get(userId);
   if (existing) {
-    // update some fields in case username or deviceName/ status changed
+    // Update existing user record
     existing.username = username;
     existing.deviceName = deviceName;
     existing.lastSeen = new Date();
@@ -87,6 +82,24 @@ export function registerMonitoredDevice(
     return { user: existing, isNew: false };
   }
 
+  // If no existing userId record, check if there's an existing device with the same name
+  // for the same username (to handle cases where same user runs device again)
+  const existingDevice = Array.from(monitoredUsers.values()).find(
+    user => user.deviceName === deviceName && user.username === username
+  );
+
+  if (existingDevice) {
+    // Update the existing device record with new userId (in case of token refresh)
+    existingDevice.lastSeen = new Date();
+    existingDevice.status = 'online';
+    // Remove old record and create new one with new userId
+    monitoredUsers.delete(existingDevice.id);
+    existingDevice.id = userId;
+    monitoredUsers.set(userId, existingDevice);
+    return { user: existingDevice, isNew: false };
+  }
+
+  // Create new monitored user if no existing record found
   const monitoredUser: MonitoredUser = {
     id: userId,
     username,
@@ -268,4 +281,25 @@ export function findUserByDeviceName(deviceName: string): MonitoredUser | undefi
   // users with the same device name now that registration is scoped per
   // user.  Use `getUsersByDeviceName` if you need all of them.
   return Array.from(monitoredUsers.values()).find(u => u.deviceName === deviceName);
+}
+
+export function deleteUserByDeviceName(deviceName: string): boolean {
+  const usersToDelete = Array.from(monitoredUsers.entries()).filter(([_, user]) => user.deviceName === deviceName);
+  
+  if (usersToDelete.length === 0) {
+    return false;
+  }
+  
+  // Remove all users with the given deviceName
+  usersToDelete.forEach(([userId, user]) => {
+    // Remove associated network connections
+    user.connections.forEach(connection => {
+      networkConnections.delete(connection.id);
+    });
+    
+    // Remove the user
+    monitoredUsers.delete(userId);
+  });
+  
+  return true;
 }

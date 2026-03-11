@@ -28,9 +28,10 @@ interface MonitoredUser {
 interface UserTableProps {
   users: MonitoredUser[];
   onSelectUser: (user: MonitoredUser) => void;
+  onDeleteUser: (deviceName: string) => void;
 }
 
-export default function UserTable({ users, onSelectUser }: UserTableProps) {
+export default function UserTable({ users, onSelectUser, onDeleteUser }: UserTableProps) {
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'connections' | 'readings'>('name');
 
   const sortedUsers = [...users].sort((a, b) => {
@@ -49,6 +50,17 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString();
+  };
+
+  const handleDelete = (deviceName: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent row click
+    if (window.confirm(`Are you sure you want to delete device "${deviceName}"? This action cannot be undone.`)) {
+      onDeleteUser(deviceName);
+    }
+  };
+
+  const isDeleteDisabled = (status: 'online' | 'offline') => {
+    return status === 'online';
   };
 
   return (
@@ -115,8 +127,21 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
                 {user.meterReadingCount}
               </td>
               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                <div className="max-w-32 truncate" title={user.uniqueIps.length > 0 ? user.uniqueIps.join(', ') : 'No IPs detected'}>
-                  {user.uniqueIps.length > 0 ? user.uniqueIps.join(', ') : '—'}
+                <div className="max-w-32 truncate" title={user.uniqueIps.length > 0 ? `Detected IPs: ${user.uniqueIps.join(', ')}` : 'No IPs detected'}>
+                  {user.uniqueIps.length > 0 ? (
+                    <div>
+                      <div className="">
+                        {user.uniqueIps[user.uniqueIps.length - 1]}
+                      </div>
+                      {user.uniqueIps.length > 1 && (
+                        <div className="text-xs text-gray-400">
+                          +{user.uniqueIps.length - 1} more
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
                 </div>
               </td>
               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -135,9 +160,21 @@ export default function UserTable({ users, onSelectUser }: UserTableProps) {
               <td className="px-4 py-4 whitespace-nowrap text-sm">
                 <button
                   onClick={() => onSelectUser(user)}
-                  className="text-blue-600 hover:text-blue-800 font-medium"
+                  className="text-blue-600 hover:text-blue-800 font-medium mr-3 cursor-pointer"
                 >
                   View Details
+                </button>
+                <button
+                  onClick={(e) => !isDeleteDisabled(user.status) && handleDelete(user.deviceName, e)}
+                  disabled={isDeleteDisabled(user.status)}
+                  className={`font-medium cursor-pointer ${
+                    isDeleteDisabled(user.status)
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-red-600 hover:text-red-800'
+                  }`}
+                  title={isDeleteDisabled(user.status) ? 'Cannot delete online device' : 'Delete device'}
+                >
+                  Delete
                 </button>
               </td>
             </tr>

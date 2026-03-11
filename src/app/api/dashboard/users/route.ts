@@ -1,7 +1,7 @@
 // app/api/dashboard/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getAllMonitoredUsers, MonitoredUser } from '@/lib/monitoring';
+import { getAllMonitoredUsers, MonitoredUser, deleteUserByDeviceName } from '@/lib/monitoring';
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,12 +42,30 @@ export async function GET(request: NextRequest) {
       } else {
         const existing = dedupMap[key];
         existing.mergedCount += 1;
-        // merge counts and arrays
-        existing.connections = existing.connections.concat(u.connections);
-        existing.meterReadings = existing.meterReadings.concat(u.meterReadings);
-        existing.lastSeen = existing.lastSeen > u.lastSeen ? existing.lastSeen : u.lastSeen;
+        
+        // Merge connections, ensuring no duplicates
+        const existingConnectionIds = new Set(existing.connections.map(c => c.id));
+        const newConnections = u.connections.filter(c => !existingConnectionIds.has(c.id));
+        existing.connections = existing.connections.concat(newConnections);
+        
+        // Merge meter readings, sort by timestamp and keep most recent
+        const allReadings = existing.meterReadings.concat(u.meterReadings);
+        allReadings.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        existing.meterReadings = allReadings.slice(0, 100); // Keep last 100 readings
+        
+        // Update with most recent data
+        if (new Date(u.lastSeen) > new Date(existing.lastSeen)) {
+          existing.lastSeen = u.lastSeen;
+          existing.registeredAt = u.registeredAt; // Keep original registration if it's earlier
+        }
+        
+        // Status is online if any instance is online
         existing.status = existing.status === 'online' || u.status === 'online' ? 'online' : 'offline';
-        // keep original id and username
+        
+        // Keep the most recent device ID (helps with tracking)
+        if (new Date(u.registeredAt) >= new Date(existing.registeredAt)) {
+          existing.id = u.id;
+        }
       }
     });
 
@@ -96,6 +114,56 @@ export async function GET(request: NextRequest) {
           mergedCount: (user as any).mergedCount || 1
         }
       })
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Token required' },
+        { status: 401 }
+      );
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const deviceName = searchParams.get('deviceName');
+
+    if (!deviceName) {
+      return NextResponse.json(
+        { error: 'Device name is required' },
+        { status: 400 }
+      );
+    }
+
+    const deleted = deleteUserByDeviceName(deviceName);
+
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Device not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Device deleted successfully'
     });
   } catch (error) {
     return NextResponse.json(

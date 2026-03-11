@@ -224,6 +224,34 @@ export default function Dashboard() {
     }
   }
 
+  const handleDeleteUser = async (deviceName: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const res = await fetch(`/api/dashboard/users?deviceName=${encodeURIComponent(deviceName)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Failed to delete device');
+        return;
+      }
+
+      // Refresh the users list after successful deletion
+      await fetchUsers();
+    } catch (err) {
+      console.error('Error deleting device:', err);
+      alert('An error occurred while deleting the device');
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -333,7 +361,7 @@ export default function Dashboard() {
               </p>
             </div>
           ) : (
-            <UserTable users={users} onSelectUser={setSelectedUser} />
+            <UserTable users={users} onSelectUser={setSelectedUser} onDeleteUser={handleDeleteUser} />
           )}
         </div>
 

@@ -129,7 +129,6 @@ class WebAppIntegrator:
                     # if the returned id differs from what we have, update it
                     returnedId = data.get('data', {}).get('id')
                     if returnedId and returnedId != self.user_id:
-                        print(f"[INFO] Adjusting user ID from {self.user_id} to {returnedId}")
                         self.user_id = returnedId
                         # regenerate JWT token for new id
                         self.jwt_token = generate_jwt_token(self.user_id)
@@ -166,7 +165,6 @@ class WebAppIntegrator:
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get('success'):
-                    print(f"[INFO] Status {status} sent successfully")
                     return True
                 else:
                     print(f"[ERROR] Status update failed: {data.get('error', 'Unknown error')}")
@@ -181,8 +179,11 @@ class WebAppIntegrator:
         """Send meter reading to the web app using the configured protocol"""
         if self.protocol == "UDP":
             return self.send_meter_reading_udp(meter_data)
-        else:
+        elif self.protocol == "TCP":
             return self.send_meter_reading_tcp(meter_data)
+        else:
+            print("[ERROR] Protocol not supported. Only TCP and UDP are supported.")
+            return False
     
     def send_meter_reading_tcp(self, meter_data):
         """Send meter reading to the web app via TCP (HTTP)"""
@@ -254,40 +255,18 @@ def main():
                        help='Set device status to offline and exit')
     args = parser.parse_args()
     
-    print("=== Smart Meter Telemetry System Setup ===")
-    # print("Connecting to production server: http://107.174.11.225:3000")
-    print("Connecting to production server: http://localhost:3000")
-    print()
-    print("IMPORTANT: You must have logged in to the dashboard first!")
-    print("   Copy your User ID from the dashboard after login.")
-    print()
-    
     # Get configuration from user input
     WEB_APP_URL = "http://localhost:3000"  # Default production URL
     # WEB_APP_URL = "http://107.174.11.225:3000"  # Default production URL
     PROTOCOL = "TCP"  # HTTPS runs over TCP
     
-    USER_ID = input("Enter your User ID (from dashboard): ").strip()
-    if not USER_ID:
-        print("[ERROR] User ID is required!")
-        sys.exit(1)
+    USER_ID = "54043afc-de58-49db-9be3-23e81493b4dd"
     
     DEVICE_NAME = input("Device Name (default: Smart Meter 001): ").strip()
     if not DEVICE_NAME:
         DEVICE_NAME = "Smart Meter 001"
 
-    print("\nNote: if a device with the same name is already registered, the meter will reuse that entry and may update the user ID accordingly.")
-    
-    print()
-    print("Configuration:")
-    print(f"  Web App URL: {WEB_APP_URL} (production)")
-    print(f"  Protocol: {PROTOCOL}")
-    print(f"  Device Name: {DEVICE_NAME}")
-    print(f"  User ID: {USER_ID}")
-    print()
-
-    print("Initializing Smart Meter Telemetry System...")
-    
+   
     web_app = WebAppIntegrator(WEB_APP_URL, USER_ID, DEVICE_NAME, PROTOCOL)
     
     # Handle offline mode
@@ -302,16 +281,12 @@ def main():
     meter = MeterDataGenerator()
     
     # Register the device
-    print(f"Registering device '{DEVICE_NAME}' with User ID '{USER_ID}'...")
+    
     if not web_app.register_device():
         print("[ERROR] Failed to register device. Please check your User ID and web app URL.")
         sys.exit(1)
     
-    print("System initialized. Starting data transmission every 35 seconds...")
-    print("Press Ctrl+C to terminate the application")
-    print("Note: Device will be set to online after first successful transmission")
-    print("       Device will remain online after termination (use --offline to set offline)")
-    print()
+  
     
     transmission_count = 0
     first_successful_transmission = False
@@ -325,7 +300,7 @@ def main():
             
             if success:
                 if not first_successful_transmission:
-                    print("[INFO] First successful transmission - setting device to online")
+                    
                     web_app.update_status('online')
                     first_successful_transmission = True
             else:
