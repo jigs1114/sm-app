@@ -283,7 +283,6 @@ export default function Dashboard() {
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-10">
                 <div
                   className="px-4 py-2 text-md font-bold text-gray-700 break-all cursor-pointer hover:bg-gray-50"
-
                 >
                   {userName || 'unknown'} <span className="ml-1 text-gray-400" onClick={copyToClipboard}
                     title="Click to copy user ID">{copied ? '✅' : '📋'} </span>
@@ -357,7 +356,7 @@ export default function Dashboard() {
             <div className="p-12 text-center">
               <p className="text-gray-500">No devices registered yet.</p>
               <p className="text-gray-400 text-sm mt-2">
-                Run the monitoring script on a device to register it.
+                Run monitoring script on a device to register it.
               </p>
             </div>
           ) : (

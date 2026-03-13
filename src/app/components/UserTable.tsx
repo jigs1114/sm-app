@@ -32,7 +32,7 @@ interface UserTableProps {
 }
 
 export default function UserTable({ users, onSelectUser, onDeleteUser }: UserTableProps) {
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'connections' | 'readings'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'status' | 'connections' | 'readings'>('status');
 
   const sortedUsers = [...users].sort((a, b) => {
     if (sortBy === 'name') {

@@ -1,17 +1,7 @@
 """
 Advanced Smart Meter Telemetry System
-Module: Real-time Data Transmission Agent
-Version: 2.7.4
+Version: 3.1
 """
-
-# Imported dependencies (part of larger project infrastructure)
-# from data_processing_engine import TimeSeriesAnalyzer
-# from network_security_manager import SecureConnectionHandler
-# from resource_monitor import SystemHealthChecker
-# from database_connector import PersistentStorageLayer
-# from config_handler import EnterpriseConfigManager
-# from encryption_protocol import AES256Cipher
-# from alarm_system import AnomalyDetector
 
 import random
 import time
@@ -24,311 +14,333 @@ import hmac
 import hashlib
 import base64
 
-def generate_jwt_token(user_id):
-    """Generate a JWT token compatible with the web app
-    
-    NOTE: This requires the JWT_SECRET to match the server's secret.
-    For production use, the meter should either:
-    1. Authenticate first using /api/auth/login
-    2. Or the server should have JWT validation disabled for monitor endpoints
-    """
+
+# =========================
+# REAL DEVICE IP DETECTION
+# =========================
+def get_real_device_ip():
+
     try:
-        # Try with 'default-secret' first (for dev)
-        secret = 'default-secret'
-        
-        header = base64.urlsafe_b64encode(
-            json.dumps({'alg': 'HS256', 'typ': 'JWT'}).encode()
-        ).decode().rstrip('=')
-        
-        payload = base64.urlsafe_b64encode(
-            json.dumps({'id': user_id, 'iat': int(time.time() * 1000)}).encode()
-        ).decode().rstrip('=')
-        
-        message = f"{header}.{payload}"
-        signature = base64.urlsafe_b64encode(
-            hmac.new(secret.encode(), message.encode(), hashlib.sha256).digest()
-        ).decode().rstrip('=')
-        
-        token = f"{message}.{signature}"
-        return token
+        r = requests.get(
+            "https://api.ipify.org/?format=text",
+            timeout=5,
+            proxies={"http": None, "https": None}
+        )
+
+        real_ip = r.text.strip()
+        return real_ip
+
     except Exception as e:
-        print(f"[ERROR] Failed to generate JWT token: {str(e)}")
+        print(f"[IP_DETECTION] Failed to detect external IP: {e}")
+        try:
+            fallback_ip = socket.gethostbyname(socket.gethostname())
+            print(f"[IP_DETECTION] Using fallback hostname IP: {fallback_ip}")
+            return fallback_ip
+        except:
+            print("[IP_DETECTION] Using default fallback IP: 0.0.0.0")
+            return "0.0.0.0"
+
+
+# =========================
+# TELEMETRY IP RESOLUTION
+# =========================
+def resolve_ip(protocol):
+
+    exported_ip = os.getenv("DEVICE_IP")
+
+    origin_ip = get_real_device_ip()
+
+    protocol = protocol.upper()
+
+    if exported_ip and protocol in ["TCP", "UDP"]:
+        print(f"[IP_RESOLUTION] Using exported IP for {protocol}: {exported_ip}")
+        return exported_ip
+
+    return origin_ip
+
+
+# =========================
+# JWT TOKEN GENERATION
+# =========================
+def generate_jwt_token(user_id):
+
+    try:
+
+        secret = "default-secret"
+
+        header = base64.urlsafe_b64encode(
+            json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
+        ).decode().rstrip("=")
+
+        payload = base64.urlsafe_b64encode(
+            json.dumps({
+                "id": user_id,
+                "iat": int(time.time()*1000)
+            }).encode()
+        ).decode().rstrip("=")
+
+        message = f"{header}.{payload}"
+
+        signature = base64.urlsafe_b64encode(
+            hmac.new(
+                secret.encode(),
+                message.encode(),
+                hashlib.sha256
+            ).digest()
+        ).decode().rstrip("=")
+
+        return f"{message}.{signature}"
+
+    except Exception as e:
+        print(f"[JWT_GENERATION] Failed to generate JWT token: {e}")
         return None
 
+
+# =========================
+# METER DATA GENERATOR
+# =========================
 class MeterDataGenerator:
-    VOLTAGE_RANGE = (220, 250)
-    CURRENT_RANGE = (5, 100)
-    POWER_FACTOR_RANGE = (0.85, 0.99)
-    FREQUENCY_RANGE = (49.8, 50.2)
-    
+
+    VOLTAGE_RANGE = (220,250)
+    CURRENT_RANGE = (5,100)
+    PF_RANGE = (0.85,0.99)
+    FREQ_RANGE = (49.8,50.2)
+
     def __init__(self):
-        self.cumulative_kwh = random.uniform(1500, 5000)
-        
+
+        self.cumulative_kwh = random.uniform(1500,5000)
+
     def generate_reading(self):
+
         voltage = random.uniform(*self.VOLTAGE_RANGE)
         current = random.uniform(*self.CURRENT_RANGE)
-        power_factor = random.uniform(*self.POWER_FACTOR_RANGE)
-        frequency = random.uniform(*self.FREQUENCY_RANGE)
+        pf = random.uniform(*self.PF_RANGE)
+        freq = random.uniform(*self.FREQ_RANGE)
 
-        apparent_power = voltage * current
-        active_power = apparent_power * power_factor
-        reactive_power = (apparent_power**2 - active_power**2)**0.5
+        apparent = voltage*current
+        active = apparent*pf
+        reactive = (apparent**2-active**2)**0.5
 
-        self.cumulative_kwh += active_power / 1000 * (35 / 3600)
-        
+        self.cumulative_kwh += active/1000*(35/3600)
+
         return {
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'voltage_v': round(voltage, 1),
-            'current_a': round(current, 2),
-            'active_power_kw': round(active_power / 1000, 2),
-            'reactive_power_kvar': round(reactive_power / 1000, 2),
-            'apparent_power_kva': round(apparent_power / 1000, 2),
-            'power_factor': round(power_factor, 2),
-            'frequency_hz': round(frequency, 1),
-            'cumulative_kwh': round(self.cumulative_kwh, 1)
+
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "voltage_v": round(voltage,1),
+            "current_a": round(current,2),
+            "active_power_kw": round(active/1000,2),
+            "reactive_power_kvar": round(reactive/1000,2),
+            "apparent_power_kva": round(apparent/1000,2),
+            "power_factor": round(pf,2),
+            "frequency_hz": round(freq,1),
+            "cumulative_kwh": round(self.cumulative_kwh,1)
         }
 
+
+# =========================
+# WEB APP INTEGRATION
+# =========================
 class WebAppIntegrator:
-    
-    def __init__(self, base_url, user_id, device_name, protocol="TCP"):
-        # Validate protocol - only accept TCP or UDP
-        if protocol.upper() not in ["TCP", "UDP"]:
-            print(f"[ERROR] Protocol '{protocol}' not supported. Only TCP and UDP are allowed.")
-            raise ValueError(f"Protocol '{protocol}' not supported. Only TCP and UDP are allowed.")
-        
-        self.base_url = base_url.rstrip('/')
+
+    ALLOWED_PROTOCOLS={"TCP","UDP"}
+
+    def __init__(self,base_url,user_id,device_name,protocol="TCP"):
+
+        protocol = protocol.upper()
+
+        if protocol not in self.ALLOWED_PROTOCOLS:
+            print(f"[WEB_INTEGRATION] Protocol '{protocol}' not allowed. Supported: {self.ALLOWED_PROTOCOLS}")
+            sys.exit(1)
+
+        self.base_url = base_url.rstrip("/")
         self.user_id = user_id
         self.device_name = device_name
-        self.protocol = protocol.upper()  # Store in uppercase for consistency
-        self.registered = False
-        # Generate JWT token at initialization
+        self.protocol = protocol
+
+        self.device_ip = resolve_ip(protocol)
+        
         self.jwt_token = generate_jwt_token(user_id)
         if not self.jwt_token:
-            print("[ERROR] Failed to generate authentication token")
-        
+            print("[WEB_INTEGRATION] Failed to initialize JWT token")
+            sys.exit(1)
+        # else:
+        #     print(f"[WEB_INTEGRATION] JWT token generated successfully for user: {user_id}")
+
+
+    # =========================
+    # DEVICE REGISTRATION
+    # =========================
     def register_device(self):
-        """Register the device with the web app using JWT token"""
-        if not self.jwt_token:
-            print("[ERROR] Cannot register without valid JWT token")
-            return False
-            
+
         try:
-            payload = {
-                'token': self.jwt_token,
-                'deviceName': self.device_name
+
+            payload={
+
+                "token":self.jwt_token,
+                "deviceName":self.device_name,
+                "ip":get_real_device_ip()
+
             }
-            
-            response = requests.post(
+
+            r=requests.post(
                 f"{self.base_url}/api/monitor/register",
                 json=payload,
                 timeout=10
             )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('success'):
-                    # if server says entry was reused or returns a different id, adjust
-                    if data.get('reused'):
-                        print(f"[INFO] Device name '{self.device_name}' already registered; reusing existing entry")
-                    self.registered = True
-                    # if the returned id differs from what we have, update it
-                    returnedId = data.get('data', {}).get('id')
-                    if returnedId and returnedId != self.user_id:
-                        self.user_id = returnedId
-                        # regenerate JWT token for new id
-                        self.jwt_token = generate_jwt_token(self.user_id)
-                        if not self.jwt_token:
-                            print("[WARNING] Unable to regenerate JWT for new user ID")
-                    return True
-                else:
-                    print(f"[ERROR] Registration failed: {data.get('error', 'Unknown error')}")
+
+
+            if r.status_code==200 and r.json().get("success"):
+                # print(f"[DEVICE_REGISTER] Device '{self.device_name}' registered successfully")
+                return True
             else:
-                print(f"[ERROR] Registration failed with status code: {response.status_code}")
-                try:
-                    error_data = response.json()
-                    print(f"[DEBUG] Response: {error_data}")
-                except:
-                    print(f"[DEBUG] Response text: {response.text}")
-                
+                print(f"[DEVICE_REGISTER] Device registration failed with status: {r.status_code}")
+
         except Exception as e:
-            print(f"[ERROR] Registration error: {str(e)}")
-            
+            print(f"[DEVICE_REGISTER] Registration error for device '{self.device_name}': {e}")
+
         return False
-    
-    def update_status(self, status):
-        """Notify the server that this device is online/offline."""
-        if not self.jwt_token:
-            print("[ERROR] Cannot update status without valid JWT token")
-            return False
+
+
+    # =========================
+    # DEVICE STATUS
+    # =========================
+    def update_status(self,status):
+
         try:
-            payload = {
-                'token': self.jwt_token,
-                'status': status,
-                'deviceName': self.device_name
+
+            payload={
+
+                "token":self.jwt_token,
+                "status":status,
+                "deviceName":self.device_name,
+                "ip":self.device_ip
+
             }
-            resp = requests.post(f"{self.base_url}/api/monitor/status", json=payload, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('success'):
-                    return True
-                else:
-                    print(f"[ERROR] Status update failed: {data.get('error', 'Unknown error')}")
-            else:
-                print(f"[ERROR] Status update HTTP {resp.status_code}")
-            return False
+
+            requests.post(
+                f"{self.base_url}/api/monitor/status",
+                json=payload,
+                timeout=5
+            )
+            # print(f"[DEVICE_STATUS] Status updated to '{status}' for device '{self.device_name}'")
+
         except Exception as e:
-            print(f"[ERROR] Status update exception: {e}")
-            return False
-    
-    def send_meter_reading(self, meter_data):
-        """Send meter reading to the web app using the configured protocol"""
-        if self.protocol == "UDP":
-            return self.send_meter_reading_udp(meter_data)
-        elif self.protocol == "TCP":
-            return self.send_meter_reading_tcp(meter_data)
-        else:
-            print("[ERROR] Protocol not supported. Only TCP and UDP are supported.")
-            return False
-    
-    def send_meter_reading_tcp(self, meter_data):
-        """Send meter reading to the web app via TCP (HTTP)"""
-        if not self.jwt_token:
-            print("[ERROR] Cannot send without valid JWT token")
-            return False
-            
+            print(f"[DEVICE_STATUS] Failed to update status to '{status}' for device '{self.device_name}': {e}")
+
+
+    # =========================
+    # SEND METER DATA
+    # =========================
+    def send_meter_reading(self,meter):
+
         try:
-            # Get IP address
-            ip = requests.get("https://api.ipify.org/?format=text", timeout=10).text
-            
-            payload = {
-                'token': self.jwt_token,
-                'deviceName': self.device_name,                      # new field for server lookup
-                'voltage_v': meter_data['voltage_v'],
-                'current_a': meter_data['current_a'],
-                'active_power_kw': meter_data['active_power_kw'],
-                'reactive_power_kvar': meter_data['reactive_power_kvar'],
-                'apparent_power_kva': meter_data['apparent_power_kva'],
-                'power_factor': meter_data['power_factor'],
-                'frequency_hz': meter_data['frequency_hz'],
-                'cumulative_kwh': meter_data['cumulative_kwh'],
-                'ip': ip,
-                'protocol': 'TCP'
+
+            payload={
+
+                "token":self.jwt_token,
+                "deviceName":self.device_name,
+
+                "voltage_v":meter["voltage_v"],
+                "current_a":meter["current_a"],
+                "active_power_kw":meter["active_power_kw"],
+                "reactive_power_kvar":meter["reactive_power_kvar"],
+                "apparent_power_kva":meter["apparent_power_kva"],
+                "power_factor":meter["power_factor"],
+                "frequency_hz":meter["frequency_hz"],
+                "cumulative_kwh":meter["cumulative_kwh"],
+
+                "ip":self.device_ip,
+                "protocol":self.protocol
+
             }
-            
-            response = requests.post(
+
+            r=requests.post(
                 f"{self.base_url}/api/monitor/meter",
                 json=payload,
                 timeout=10
             )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('success'):
-                    print(f"[SUCCESS] Meter reading transmitted successfully at {time.strftime('%H:%M:%S')}")
-                    print(f"   Voltage: {meter_data['voltage_v']}V | Current: {meter_data['current_a']}A | Power: {meter_data['active_power_kw']}kW")
-                    print(f"   Detected IP: {ip} | Frequency: {meter_data['frequency_hz']}Hz | Energy: {meter_data['cumulative_kwh']}kWh")
-                    return True
-                else:
-                    print(f"[ERROR] Transmission failed: {data.get('error', 'Unknown error')}")
-                    print(f"   Voltage: {meter_data['voltage_v']}V | Current: {meter_data['current_a']}A | Power: {meter_data['active_power_kw']}kW")
-                    print(f"   Detected IP: {ip} | Frequency: {meter_data['frequency_hz']}Hz")
+
+            if r.status_code==200 and r.json().get("success"):
+                timestamp = time.strftime("%H:%M:%S")
+                print(f"Voltage: {meter['voltage_v']}V | Current: {meter['current_a']}A | Power: {meter['active_power_kw']}kW")
+                print(f"PF: {meter['power_factor']} | Frequency: {meter['frequency_hz']}Hz | Energy: {meter['cumulative_kwh']}kWh")
+                print(f"IP : {self.device_ip}")
+                return True
             else:
-                print(f"[ERROR] Transmission failed with status code: {response.status_code}")
-                print(f"   Voltage: {meter_data['voltage_v']}V | Current: {meter_data['current_a']}A | Power: {meter_data['active_power_kw']}kW")
-                print(f"   Detected IP: {ip} | Frequency: {meter_data['frequency_hz']}Hz")
-                
+                print(f"[METER_TRANSMISSION] Failed to send data - Status: {r.status_code}")
+
         except Exception as e:
-            print(f"[ERROR] Transmission error: {str(e)}")
-            print(f"   Voltage: {meter_data['voltage_v']}V | Current: {meter_data['current_a']}A | Power: {meter_data['active_power_kw']}kW")
-            print(f"   Frequency: {meter_data['frequency_hz']}Hz")
-            
+            print(f"[METER_TRANSMISSION] Transmission error: {e}")
+
         return False
 
-    def send_meter_reading_udp(self, meter_data):
-        """Send meter reading via UDP (Note: UDP server support not implemented)"""
-        print("[WARNING] UDP transmission selected but not fully implemented.")
-        print("   Falling back to TCP/HTTP for now.")
-        print(f"   Voltage: {meter_data['voltage_v']}V | Current: {meter_data['current_a']}A | Power: {meter_data['active_power_kw']}kW")
-        print(f"   Frequency: {meter_data['frequency_hz']}Hz | Protocol: UDP (logged)")
-        return True
 
+# =========================
+# MAIN PROGRAM
+# =========================
 def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Smart Meter Telemetry System')
-    parser.add_argument('--offline', action='store_true', 
-                       help='Set device status to offline and exit')
-    args = parser.parse_args()
-    
-    # Get configuration from user input
-    WEB_APP_URL = "http://localhost:3000"  # Default production URL
-    # WEB_APP_URL = "http://107.174.11.225:3000"  # Default production URL
-    PROTOCOL = "TCP"  # HTTPS runs over TCP
-    
-    USER_ID = "54043afc-de58-49db-9be3-23e81493b4dd"
-    
-    DEVICE_NAME = input("Device Name (default: Smart Meter 001): ").strip()
-    if not DEVICE_NAME:
-        DEVICE_NAME = "Smart Meter 001"
 
-   
-    web_app = WebAppIntegrator(WEB_APP_URL, USER_ID, DEVICE_NAME, PROTOCOL)
+    WEB_APP_URL=os.getenv("WEB_APP_URL","http://localhost:3000")
+
+    USER_ID=os.getenv(
+        "USER_ID",
+        "54043afc-de58-49db-9be3-23e81493b4dd"
+    )
+
+    # Ask user for device name if not set in environment
+    DEVICE_NAME=os.getenv("DEVICE_NAME")
+    if not DEVICE_NAME:
+        print("[DEVICE_SETUP] Please enter a name for this device:")
+        DEVICE_NAME = input("Device Name: ").strip()
+        if not DEVICE_NAME:
+            DEVICE_NAME = f"Smart Meter {int(time.time())}"
+            print(f"[DEVICE_SETUP] Using default device name: {DEVICE_NAME}")
+
+    PROTOCOL=os.getenv("PROTOCOL","TCP")
     
-    # Handle offline mode
-    if args.offline:
-        print(f"Setting device '{DEVICE_NAME}' to offline status...")
-        if web_app.update_status('offline'):
-            print("[SUCCESS] Device status set to offline")
-        else:
-            print("[ERROR] Failed to set device status to offline")
-        return
-    
-    meter = MeterDataGenerator()
-    
-    # Register the device
-    
-    if not web_app.register_device():
-        print("[ERROR] Failed to register device. Please check your User ID and web app URL.")
+    web=WebAppIntegrator(
+        WEB_APP_URL,
+        USER_ID,
+        DEVICE_NAME,
+        PROTOCOL
+    )
+
+    meter=MeterDataGenerator()
+
+    if not web.register_device():
+        print("[SYSTEM] Failed to register device - exiting")
         sys.exit(1)
-    
-  
-    
-    transmission_count = 0
-    first_successful_transmission = False
+
+    web.update_status("online")
+    # print("[SYSTEM] Device is now online and ready to transmit data")
+
+    cycle=0
+    # print("[SYSTEM] Starting data transmission cycles (35-second intervals)")
+
     while True:
         try:
-            transmission_count += 1
-            print(f"\nCycle #{transmission_count} - Generating meter data...")
-            
-            meter_data = meter.generate_reading()
-            success = web_app.send_meter_reading(meter_data)
-            
-            if success:
-                if not first_successful_transmission:
-                    
-                    web_app.update_status('online')
-                    first_successful_transmission = True
-            else:
-                print(f"[WARNING] Cycle #{transmission_count} failed to transmit meter reading")
-                print("   Check network connection and server status")
-            
-            time.sleep(35)
-            
-        except KeyboardInterrupt:
-            print("\n\n[INFO] Application terminated by user")
-            # Set device offline immediately for better status management
-            print("[INFO] Setting device status to offline...")
-            web_app.update_status('offline')
-            break
-        except Exception as e:
-            print(f"Unexpected system error: {e}")
-            # Set offline on exceptions too for better status tracking
-            try:
-                print("[INFO] Setting device status to offline due to error...")
-                web_app.update_status('offline')
-            except:
-                pass
+            cycle+=1
+            print(f"\n === Starting Transmission #{cycle} ===")
+
+            data=meter.generate_reading()
+            print(f"Generated new meter reading at {data['timestamp']}")
+
+            web.send_meter_reading(data)
+
             time.sleep(35)
 
-if __name__ == "__main__":
+        except KeyboardInterrupt:
+            print("\n[SYSTEM] Shutdown signal received")
+            web.update_status("offline")
+            print("[SYSTEM] Device status set to offline")
+            print("[SYSTEM] Smart Meter Telemetry System stopped")
+            break
+
+        except Exception as e:
+            print(f"[SYSTEM] Unexpected error in cycle #{cycle}: {e}")
+            print("[SYSTEM] Continuing with next cycle...")
+            time.sleep(35)
+
+
+if __name__=="__main__":
     main()
